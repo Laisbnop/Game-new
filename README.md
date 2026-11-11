@@ -32,9 +32,11 @@ HTML, CSS e JavaScript, sem etapa de build.
 
 ## Estrutura
 
-| Arquivo | O que tem |
+Tudo fica em um único arquivo, `index.html`, dividido em blocos:
+
+| Bloco | O que tem |
 | --- | --- |
-| `js/data.js` | Personagens, origens, trilhas, missões e loja — edite aqui o conteúdo |
-| `js/sprites.js` | Personagens em pixel art desenhados por código |
-| `js/scene.js` | Cenário animado da vila |
-| `js/game.js` | Criação de personagem, chat, missões e progresso |
+| `data.js` | Personagens, origens, trilhas, missões e loja — edite aqui o conteúdo |
+| `sprites.js` | Personagens em pixel art desenhados por código |
+| `scene.js` | Cenário animado da vila |
+| `game.js` | Criação de personagem, chat, missões e progresso |
