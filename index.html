@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trilha — RPG de Profissões</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- TELA DE TÍTULO -->
+  <section id="screen-title" class="screen">
+    <canvas id="title-canvas" class="pixel title-scene" width="256" height="144"></canvas>
+    <h1 class="logo">TRILHA</h1>
+    <p class="subtitle">RPG de Profissões</p>
+    <div class="win title-menu">
+      <button id="btn-new" class="menu-item">Novo jogo</button>
+      <button id="btn-continue" class="menu-item" hidden>Continuar</button>
+    </div>
+  </section>
+
+  <!-- CRIAÇÃO DE PERSONAGEM -->
+  <section id="screen-create" class="screen" hidden>
+    <div class="win create-win">
+      <div class="steps" id="steps"></div>
+
+      <div class="step" data-step="0">
+        <h2>Escolha seu personagem</h2>
+        <p class="hint">Cada personagem tem uma profissão de origem.</p>
+        <div class="card-grid" id="char-grid"></div>
+      </div>
+
+      <div class="step" data-step="1" hidden>
+        <h2>Qual é o seu nome?</h2>
+        <p class="hint">É assim que o mundo vai te chamar.</p>
+        <div class="name-row">
+          <canvas id="name-preview" class="pixel" width="16" height="20"></canvas>
+          <input id="name-input" type="text" maxlength="14" placeholder="Seu nome" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="step" data-step="2" hidden>
+        <h2>Como sua história começa?</h2>
+        <p class="hint">A origem muda o ponto de partida — não o destino.</p>
+        <div class="card-grid class-grid" id="class-grid"></div>
+        <div class="class-result" id="class-result"></div>
+      </div>
+
+      <div class="step" data-step="3" hidden>
+        <h2>Escolha sua trilha de profissão</h2>
+        <p class="hint">Seguir a profissão do seu personagem dá bônus de afinidade (+10% XP).</p>
+        <div class="card-grid" id="trail-grid"></div>
+      </div>
+
+      <div class="create-nav">
+        <button id="btn-back" class="btn">◀ Voltar</button>
+        <button id="btn-next" class="btn primary">Avançar ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- JOGO -->
+  <section id="screen-game" class="screen" hidden>
+    <div class="game-layout">
+      <div class="col-main">
+        <div class="win hud" id="hud"></div>
+        <div class="scene-wrap">
+          <canvas id="scene" class="pixel" width="256" height="144"></canvas>
+        </div>
+        <div class="win chat">
+          <div class="chat-log" id="chat-log" aria-live="polite"></div>
+          <div class="quick" id="quick"></div>
+          <form class="chat-form" id="chat-form">
+            <input id="chat-input" type="text" maxlength="200" placeholder="Fale com o Mestre Ori..." autocomplete="off">
+            <button class="btn primary" type="submit">Enviar</button>
+          </form>
+        </div>
+      </div>
+
+      <aside class="col-side">
+        <div class="win panel">
+          <h3 id="trail-title">Trilha</h3>
+          <div class="stage-bar" id="stage-bar"></div>
+          <ul class="missions" id="trail-missions"></ul>
+        </div>
+        <div class="win panel">
+          <h3>Missões do dia <span class="streak" id="streak"></span></h3>
+          <ul class="missions" id="daily-missions"></ul>
+        </div>
+        <button id="btn-reset" class="btn small">Recomeçar do zero</button>
+      </aside>
+    </div>
+  </section>
+
+  <script src="js/data.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
