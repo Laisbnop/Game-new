@@ -49,7 +49,8 @@ const Sprites = (() => {
     return '#' + f(n >> 16) + f((n >> 8) & 255) + f(n & 255);
   };
 
-  function render(look, frame) {
+  /* dir: 'down' (de frente), 'up' (de costas) ou 'side' (de perfil, olhando para a esquerda) */
+  function render(look, frame, dir = 'down') {
     const grid = Array.from({ length: H }, () => Array(W).fill(null));
     const p = (x, y, c) => { if (x >= 1 && x < W - 1 && y >= 1 && y < H - 1) grid[y][x] = c; };
     const row = (y, x0, x1, c) => { for (let x = x0; x <= x1; x++) p(x, y, c); };
@@ -61,7 +62,7 @@ const Sprites = (() => {
     const [T, B] = look.outfit || body.outfit;
     const Td = shade(T, 0.75), Bd = shade(B, 0.75), SHOE = '#3a2a22';
     const hair = look.hair;
-    const step = frame === 1;
+    const step = frame === 1, up = dir === 'up', side = dir === 'side';
 
     /* ---- cabelo de trás (fica atrás do corpo) ---- */
     if (hair === 'liso') box(4, 8, 15, 19, Hd);
@@ -82,7 +83,19 @@ const Sprites = (() => {
       box(4, 16, 5, 21 - a, S); box(14, 16, 15, 20 + a, S);
       box(4, 16, 5, sleeveEnd - a, T); box(14, 16, 15, sleeveEnd - 1 + a, Td);
     };
-    if (body.id === 'm') {
+    if (side) {                                           // perfil: tronco estreito, um braço e pernas em passada
+      const long = body.id === 'f' ? 23 : body.id === 'robe' ? 25 : 21;
+      box(7, 16, 12, long, T); box(12, 16, 12, long, Td);
+      if (body.id === 'f') row(19, 7, 12, shade(T, 0.6));
+      if (body.id === 'robe') { row(25, 6, 13, '#ffd75e'); row(26, 7, 11, SHOE); }
+      else {
+        const y0 = long + 1;
+        if (step) { box(6, y0, 8, 24, B); box(11, y0, 13, 25, Bd); row(25, 5, 8, SHOE); row(26, 10, 13, SHOE); }
+        else { box(8, y0, 11, 25, B); p(11, 25, Bd); row(26, 7, 11, SHOE); }
+      }
+      const ax = step ? 8 : 9;                            // braço balança
+      box(ax, 16, ax + 1, 20, S); box(ax, 16, ax + 1, body.id === 'f' ? 17 : 18, Td);
+    } else if (body.id === 'm') {
       box(6, 16, 13, 21, T); box(13, 16, 13, 21, Td); row(21, 6, 13, Td);
       row(16, 8, 11, shade(T, 1.2));
       row(22, 6, 13, B); legs(23); arms(18);
@@ -109,9 +122,12 @@ const Sprites = (() => {
     /* ---- cabeça ---- */
     row(6, 7, 12, S); row(7, 6, 13, S); box(5, 8, 14, 12, S); row(13, 6, 13, S); row(14, 7, 12, S);
     box(14, 8, 14, 12, Sd); p(13, 13, Sd); p(12, 14, Sd);
-    p(7, 10, OUT); p(7, 11, OUT); p(12, 10, OUT); p(12, 11, OUT);   // olhos
-    p(6, 12, shade(S, 0.93)); p(13, 12, shade(S, 0.93));
-    p(9, 13, Sd); p(10, 13, Sd);                                     // boca
+    if (side) { p(6, 10, OUT); p(6, 11, OUT); p(6, 13, Sd); }                  // um olho, de perfil
+    else if (!up) {
+      p(7, 10, OUT); p(7, 11, OUT); p(12, 10, OUT); p(12, 11, OUT);          // olhos
+      p(6, 12, shade(S, 0.93)); p(13, 12, shade(S, 0.93));
+      p(9, 13, Sd); p(10, 13, Sd);                                           // boca
+    }
 
     /* ---- cabelo da frente ---- */
     const cap = () => {                    // topo da cabeça, comum aos cabelos longos
@@ -122,7 +138,7 @@ const Sprites = (() => {
     if (hair === 'careca') {
       row(7, 8, 10, Sl); p(8, 8, Sl);                     // brilho no topo
       p(4, 11, S); p(15, 11, Sd);                         // orelhas
-      p(7, 9, Sd); p(12, 9, Sd);                          // sobrancelhas
+      if (!up && !side) { p(7, 9, Sd); p(12, 9, Sd); }    // sobrancelhas
     } else if (hair === 'liso') {
       cap();
       box(4, 7, 5, 19, Hb); box(14, 7, 15, 19, Hb);       // mechas retas até o peito
@@ -142,7 +158,7 @@ const Sprites = (() => {
     } else if (hair === 'crespo') {
       for (let y = 1; y <= 13; y++) for (let x = 2; x <= 17; x++) {   // volume redondo
         if (Math.hypot(x - 9.5, y - 7.6) > 7.1) continue;
-        if (y >= 9 && x >= 6 && x <= 13) continue;        // rosto
+        if (!up && y >= 9 && x >= 6 && x <= 13) continue; // rosto
         const tex = ((x * 37) ^ (y * 91) ^ (x * y * 13)) % 7;         // textura salpicada
         p(x, y, tex === 0 || tex === 4 ? Hd : (tex === 2 && y < 7 ? Hl : Hb));
       }
@@ -163,6 +179,19 @@ const Sprites = (() => {
         p(x, y1 + 1, '#ffd75e');                          // conta dourada na ponta
       };
       braid(3, 19); braid(5, 21); braid(14, 21); braid(16, 19);
+    }
+    if (hair !== 'careca' && up) {                        // de costas: o cabelo cobre a cabeça
+      row(9, 6, 13, Hb); box(5, 9, 14, 12, Hb); row(13, 6, 13, Hb); row(14, 7, 12, Hd);
+      for (let y = 9; y <= 13; y += 2) for (let x = 6 + (y % 4 ? 0 : 1); x <= 13; x += 3) p(x, y, Hd);
+      if (hair === 'liso' || hair === 'ondulado') { box(5, 13, 14, 19, Hb); for (let y = 13; y <= 19; y++) { p(5, y, Hd); p(14, y, Hd); if (hair === 'ondulado' && y % 2) { p(8, y, Hd); p(11, y, Hd); } } p(9, 19, Hd); p(10, 19, Hd); }
+      if (hair === 'cacheado') { box(5, 13, 14, 17, Hb); for (let y = 13; y <= 17; y += 2) for (let x = 5; x <= 14; x += 3) { p(x, y, Hl); p(x + 1, y + 1, Hd); } }
+      if (hair === 'trancas') for (let x = 5; x <= 14; x += 2) { for (let y = 9; y <= 20; y++) p(x, y, y % 2 ? Hb : Hd); p(x, 21, '#ffd75e'); }
+    }
+    if (hair !== 'careca' && side) {                      // de perfil: rosto livre à esquerda, cabelo atrás
+      for (let y = 9; y < H; y++) for (let x = 1; x <= 5; x++) if (grid[y][x] === Hb || grid[y][x] === Hd || grid[y][x] === Hl || grid[y][x] === '#ffd75e') grid[y][x] = null;
+      box(5, 9, 5, 12, S);
+      box(10, 9, 14, 13, Hb); p(10, 13, S); p(10, 12, S); p(12, 11, Hd); p(13, 9, Hd);
+      if (hair === 'liso' || hair === 'ondulado' || hair === 'cacheado' || hair === 'trancas') for (let y = 14; y <= (hair === 'cacheado' ? 17 : 19); y++) { row(y, 12, 15, y % 2 && hair !== 'liso' ? Hd : Hb); p(15, y, Hd); }
     }
     if (look.hat === 'chef') {                            // chapéu de cozinha
       box(6, 1, 13, 5, '#f8f8f8'); row(1, 7, 12, '#ffffff'); box(13, 2, 13, 5, '#d8d8e4'); row(6, 5, 14, '#e8e8f0'); p(9, 3, '#d8d8e4'); p(9, 4, '#d8d8e4');
@@ -186,22 +215,33 @@ const Sprites = (() => {
     return c;
   }
 
+  const flipped = img => {
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'); g.translate(W, 0); g.scale(-1, 1); g.drawImage(img, 0, 0);
+    return c;
+  };
+  /* Quadros por direção: [parado, passo A, passo B]. */
   const cache = new Map();
   function frames(look) {
     const key = JSON.stringify(look);
-    if (!cache.has(key)) cache.set(key, [render(look, 0), render(look, 1)]);
+    if (!cache.has(key)) {
+      const set = dir => { const a = render(look, 0, dir), b = render(look, 1, dir); return [a, b, dir === 'side' ? a : flipped(b)]; };
+      const down = set('down'), up = set('up'), left = set('side');
+      cache.set(key, { down, up, left, right: left.map(flipped) });
+    }
     return cache.get(key);
   }
 
-  /* Desenha o personagem com o canto superior esquerdo em (x, y). */
-  function draw(ctx, look, x, y, frame = 0, flip = false) {
-    const img = frames(look)[Math.abs(frame) % 2 | 0];
-    x = Math.round(x); y = Math.round(y);
-    if (flip) { ctx.save(); ctx.translate(x + W, y); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0); ctx.restore(); }
-    else ctx.drawImage(img, x, y);
+  const WALK = [1, 0, 2, 0];
+  /* Desenha com o canto superior esquerdo em (x, y). dir: 'down' | 'up' | 'left' | 'right'.
+     frame: 0 = parado; ou passe walk(t) para o ciclo de caminhada. */
+  function draw(ctx, look, x, y, frame = 0, dir = 'down') {
+    const set = frames(look)[dir] || frames(look).down;
+    ctx.drawImage(set[Math.abs(frame) % 3 | 0], Math.round(x), Math.round(y));
   }
+  const walk = t => WALK[Math.floor(t / 130) % 4];
 
   const ORI = { body: 'robe', skin: 's3', hair: 'liso', hairColor: 'grisalho', beard: true };
 
-  return { W, H, SKINS, HAIR_COLORS, HAIRS, BODIES, ORI, draw, frames };
+  return { W, H, SKINS, HAIR_COLORS, HAIRS, BODIES, ORI, draw, frames, walk };
 })();

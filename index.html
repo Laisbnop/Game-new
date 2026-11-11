@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Trilha — RPG de Profissões</title>
+  <title>Trilha — RPG de vida na vila</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
   <section id="screen-title" class="screen" hidden>
     <div class="frame"><canvas id="title-canvas" class="pixel" width="256" height="160"></canvas></div>
     <h1 class="logo">TRILHA</h1>
-    <p class="subtitle">RPG de Profissões</p>
+    <p class="subtitle">RPG de vida na vila</p>
     <div class="win notice" id="save-notice" hidden></div>
     <div class="win title-menu">
       <button id="btn-continue" class="menu-item" hidden>Continuar</button>
@@ -51,16 +51,17 @@
   <!-- JOGO -->
   <section id="screen-game" class="screen" hidden>
     <div class="stage">
-      <div class="frame scene-wrap">
+      <div class="frame scene-wrap" id="scene-wrap">
         <canvas id="scene" class="pixel" width="256" height="160"></canvas>
         <div class="hud" id="hud"></div>
         <div class="toasts" id="toasts" aria-live="polite"></div>
+        <div class="hint-bar" id="hint" hidden></div>
       </div>
 
       <div class="objective" id="objective"></div>
 
       <div class="bottom">
-        <!-- caixa de diálogo: aparece só quando há conversa -->
+        <!-- conversa: aparece só quando alguém fala -->
         <div class="win dialog" id="dialog" hidden>
           <canvas id="portrait" class="pixel portrait" width="20" height="18"></canvas>
           <div class="dialog-main">
@@ -71,43 +72,54 @@
           <div class="more" id="dlg-more">▼</div>
         </div>
 
-        <!-- atividade da missão: aparece no lugar das ações enquanto está aberta -->
-        <div class="win activity" id="activity" hidden></div>
+        <!-- bancada de trabalho: abre no ponto onde a tarefa acontece -->
+        <div class="win work" id="work" hidden></div>
 
-        <!-- ações: aparecem quando não há conversa -->
-        <nav class="actions" id="actions">
-          <button class="btn primary" id="act-mission" hidden></button>
-          <button class="btn" id="act-go"></button>
-          <button class="btn" id="act-talk">Conversar</button>
-          <button class="btn" data-tab="missoes">Missões</button>
-          <button class="btn" data-tab="diario">Diário</button>
-          <button class="btn" data-tab="loja">Loja</button>
-          <button class="btn" data-tab="ficha">Ficha</button>
-        </nav>
+        <!-- barra discreta: painéis e controles de toque -->
+        <div class="dock" id="bar">
+          <div class="touch" id="touch" aria-label="Controles de direção">
+            <button class="tb up" data-dir="up" aria-label="Cima">▲</button>
+            <button class="tb left" data-dir="left" aria-label="Esquerda">◀</button>
+            <button class="tb right" data-dir="right" aria-label="Direita">▶</button>
+            <button class="tb down" data-dir="down" aria-label="Baixo">▼</button>
+          </div>
+          <nav class="actions" id="actions">
+            <button class="btn" data-tab="tarefas">Tarefas</button>
+            <button class="btn" data-tab="mochila">Mochila</button>
+            <button class="btn" data-tab="diario">Diário</button>
+            <button class="btn" data-tab="ficha">Ficha</button>
+          </nav>
+          <button class="tb act" id="touch-act" aria-label="Interagir">E</button>
+        </div>
       </div>
     </div>
 
-    <!-- painel que abre sob demanda -->
+    <!-- painéis que abrem sob demanda -->
     <div class="modal" id="modal" hidden>
       <div class="win modal-win" role="dialog" aria-modal="true" aria-label="Menu">
         <div class="tabs" id="tabs">
-          <button data-tab="missoes">Missões</button>
+          <button data-tab="tarefas">Tarefas</button>
+          <button data-tab="mochila">Mochila</button>
           <button data-tab="diario">Diário</button>
-          <button data-tab="loja">Loja</button>
           <button data-tab="ficha">Ficha</button>
           <button class="close" id="modal-close" aria-label="Fechar">✕</button>
         </div>
         <div class="modal-body" id="modal-body"></div>
       </div>
     </div>
+
+    <!-- resumo ao dormir -->
+    <div class="modal" id="summary" hidden>
+      <div class="win modal-win" role="dialog" aria-modal="true" aria-label="Resumo do dia"><div class="modal-body" id="summary-body"></div></div>
+    </div>
   </section>
 
   <script src="js/data.js"></script>
-  <script src="js/activities.js"></script>
   <script src="js/story.js"></script>
   <script src="js/sprites.js"></script>
-  <script src="js/scene.js"></script>
-  <script src="js/activity.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/minigames.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
