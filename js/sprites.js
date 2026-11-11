@@ -164,6 +164,9 @@ const Sprites = (() => {
       };
       braid(3, 19); braid(5, 21); braid(14, 21); braid(16, 19);
     }
+    if (look.hat === 'chef') {                            // chapéu de cozinha
+      box(6, 1, 13, 5, '#f8f8f8'); row(1, 7, 12, '#ffffff'); box(13, 2, 13, 5, '#d8d8e4'); row(6, 5, 14, '#e8e8f0'); p(9, 3, '#d8d8e4'); p(9, 4, '#d8d8e4');
+    }
     if (look.beard) {
       row(12, 6, 13, '#eeeef4'); row(13, 6, 13, '#eeeef4'); row(14, 7, 12, '#eeeef4');
       row(15, 8, 11, '#d8d8e4'); row(16, 9, 10, '#d8d8e4');
@@ -192,7 +195,7 @@ const Sprites = (() => {
 
   /* Desenha o personagem com o canto superior esquerdo em (x, y). */
   function draw(ctx, look, x, y, frame = 0, flip = false) {
-    const img = frames(look)[frame % 2];
+    const img = frames(look)[Math.abs(frame) % 2 | 0];
     x = Math.round(x); y = Math.round(y);
     if (flip) { ctx.save(); ctx.translate(x + W, y); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0); ctx.restore(); }
     else ctx.drawImage(img, x, y);

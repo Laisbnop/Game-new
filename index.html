@@ -67,17 +67,17 @@
             <div class="who" id="dlg-who"></div>
             <div class="text" id="dlg-text"></div>
             <div class="choices" id="dlg-choices"></div>
-            <form class="dlg-form" id="dlg-form" hidden>
-              <input id="dlg-input" type="text" maxlength="200" autocomplete="off">
-              <button class="btn primary" type="submit">Enviar</button>
-            </form>
           </div>
           <div class="more" id="dlg-more">▼</div>
         </div>
 
+        <!-- atividade da missão: aparece no lugar das ações enquanto está aberta -->
+        <div class="win activity" id="activity" hidden></div>
+
         <!-- ações: aparecem quando não há conversa -->
         <nav class="actions" id="actions">
-          <button class="btn primary" id="act-go"></button>
+          <button class="btn primary" id="act-mission" hidden></button>
+          <button class="btn" id="act-go"></button>
           <button class="btn" id="act-talk">Conversar</button>
           <button class="btn" data-tab="missoes">Missões</button>
           <button class="btn" data-tab="diario">Diário</button>
@@ -103,9 +103,11 @@
   </section>
 
   <script src="js/data.js"></script>
+  <script src="js/activities.js"></script>
   <script src="js/story.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/scene.js"></script>
+  <script src="js/activity.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

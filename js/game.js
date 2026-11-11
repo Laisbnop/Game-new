@@ -62,6 +62,7 @@
       diary: [], daily: null, streak: 0, lastActive: null, lastLogin: null, days: 0, coffee: false,
       story: { done: {}, flags: [], income: 0, incomeLabel: '' },
       place: 'praca', introDone: false,
+      act: null, prac: null, choices: {}, results: {},
     }, base);
   }
 
@@ -252,7 +253,8 @@
   const mid = (stage, i) => `${S.trail}-${stage}-${i}`;
   const guardian = () => GUARDIANS[S.cls];
   const guardianLook = () => Object.assign({}, guardian().look, { skin: S.look.skin });
-  const fmt = t => t.replace(/\{nome\}/g, S.name).replace(/\{trilha\}/g, trail().name);
+  const fmt = t => String(t).replace(/\{nome\}/g, S.name).replace(/\{trilha\}/g, trail().name)
+    .replace(/\{c:(\w+)\}/g, (_, k) => (S.choices[k] ? S.choices[k].label : '...'));
   const npcFor = place => (place === 'praca' ? Sprites.ORI : guardianLook());
 
   /* Próximo capítulo da história, se já estiver liberado pelo progresso. */
@@ -264,6 +266,11 @@
   function startGame() {
     show('game');
     if (!S.story) S.story = { done: {}, flags: [], income: 0, incomeLabel: '' };
+    // campos criados depois (jogos salvos antes das atividades continuam valendo)
+    S.choices = S.choices || {}; S.results = S.results || {};
+    if (!S.act || S.done[S.act.id] || !actOf(S.act.id) || S.act.id !== currentId()) S.act = null;
+    if (!S.prac || !actOf(S.prac.id)) S.prac = null;
+    actSlot = null; $('activity').hidden = true; $('activity').replaceChildren(); $('actions').hidden = false;
     Scene.start($('scene'), { place: S.place, cls: S.cls, color: trail().color, hero: S.look, npc: npcFor(S.place) });
     closeModal();
     const newDay = S.lastLogin !== today();
@@ -283,18 +290,31 @@
     });
   }
 
-  /* ---------- missões do dia ---------- */
+  /* ---------- treinos do dia ---------- */
+  const actOf = id => { const [t, st, i] = String(id).split('-'); return ACTIVITIES[t] && ACTIVITIES[t][+st] && ACTIVITIES[t][+st][+i]; };
+  const doneIds = () => Object.keys(S.done).filter(id => S.done[id] && id.startsWith(S.trail + '-') && actOf(id));
+
+  /* Até 3 atividades já concluídas da trilha, sorteadas pelo dia, para refazer como treino.
+     force = trocar os treinos ainda pendentes (item da loja). */
   function ensureDaily(force) {
-    const t = today();
-    if (!force && S.daily && S.daily.date === t) return;
-    const salt = force ? (S.daily.salt || 0) + 1 : 0;
-    // sorteio determinístico pelo dia: 2 da trilha + 1 geral
+    const t = today(), old = S.daily;
+    const fresh = !old || old.date !== t || !Array.isArray(old.ids);
+    const salt = fresh ? 0 : (old.salt || 0) + (force ? 1 : 0);
     let seed = [...(t + S.trail + salt)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
     const rand = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-    const pick = (arr, n) => arr.map(v => [rand(), v]).sort((a, b) => a[0] - b[0]).slice(0, n).map(p => p[1]);
-    const items = [...pick(trail().daily, 2), ...pick(DAILY_GENERIC, 1)];
-    const old = force ? S.daily : null;                     // ao trocar, as já cumpridas ficam como estão
-    S.daily = { date: t, salt, items: items.map((m, i) => (old && old.done[i] ? old.items[i] : m)), done: old ? old.done.slice() : [false, false, false] };
+    const pool = doneIds().sort().map(v => [rand(), v]).sort((a, b) => a[0] - b[0]).map(p => p[1]);
+    let ids, done;
+    if (fresh) {
+      // formato antigo no mesmo dia: o que já foi recompensado hoje continua contado
+      const carry = old && old.date === t && Array.isArray(old.done) ? old.done.filter(Boolean).length : 0;
+      ids = pool.slice(0, 3); done = ids.map((_, i) => i < carry);
+    } else {
+      ids = old.ids.filter((_, i) => old.done[i] || !force); done = ids.map(id => !!old.done[old.ids.indexOf(id)]);
+      if (force) pool.forEach(id => { if (ids.length < 3 && !ids.includes(id) && !old.ids.includes(id)) { ids.push(id); done.push(false); } });
+      pool.forEach(id => { if (ids.length < 3 && !ids.includes(id)) { ids.push(id); done.push(false); } });
+    }
+    S.daily = { date: t, salt, ids, done };
+    if (S.prac && (S.prac.date !== t || !ids.includes(S.prac.id) || done[ids.indexOf(S.prac.id)])) S.prac = null;
     if (S.lastActive && dayDiff(S.lastActive, t) > 1) S.streak = 0;
   }
 
@@ -322,7 +342,7 @@
     return new Promise(resolve => {
       text = fmt(text);
       setSpeaker(who);
-      $('dlg-choices').replaceChildren(); $('dlg-form').hidden = true; $('dlg-more').hidden = false;
+      $('dlg-choices').replaceChildren(); $('dlg-more').hidden = false;
       const box = $('dlg-text');
       let n = 0;
       clearInterval(typer);
@@ -344,24 +364,6 @@
       box.firstChild.focus();
     });
   }
-  /* Pede um texto; devolve { text } ou { button: índice }. */
-  function ask(placeholder, buttons) {
-    return new Promise(resolve => {
-      onAdvance = null; $('dlg-more').hidden = true;
-      const form = $('dlg-form'), input = $('dlg-input'), box = $('dlg-choices');
-      form.hidden = false; input.value = ''; input.placeholder = placeholder;
-      const end = r => { form.hidden = true; form.onsubmit = null; box.replaceChildren(); resolve(r); };
-      form.onsubmit = e => { e.preventDefault(); if (input.value.trim()) end({ text: input.value.trim() }); };
-      box.replaceChildren();
-      buttons.forEach((label, i) => {
-        const b = el('button', 'btn', label); b.type = 'button';
-        b.onclick = e => { e.stopPropagation(); end({ button: i }); };
-        box.append(b);
-      });
-      input.focus();
-    });
-  }
-
   $('dialog').addEventListener('click', e => { if (!e.target.closest('button, input, form') && onAdvance) onAdvance(); });
   document.addEventListener('keydown', e => {
     if (!onAdvance || $('screen-game').hidden) return;
@@ -393,7 +395,7 @@
   async function intro() {
     await say('ori', 'Olá, {nome}! Eu sou o Mestre Ori. Cuido das trilhas de profissão desta vila.');
     await say('ori', 'Você tem 17 anos e escolheu a trilha de {trilha}. Ela é feita de passos de verdade: cursos, prática e projetos.');
-    await say('ori', 'Cumpra cada missão na vida real e registre aqui. Em "Missões" você encontra a trilha e os hábitos do dia.');
+    await say('ori', 'Cada missão é uma atividade que você realiza aqui na vila: fale comigo ou use o botão "Iniciar atividade".');
     await say('ori', 'Já está ficando tarde. Vá para casa — amanhã a caminhada continua.');
     S.introDone = true;
   }
@@ -443,20 +445,35 @@
     'Já comeu? Estudar de barriga vazia não rende.',
     'Me conta depois como foi o seu dia.',
   ];
-  function talk() {
-    run(async () => {
+  const STATE_LABEL = { nova: 'Iniciar atividade', andamento: 'Continuar atividade', cumprida: 'Receber recompensa' };
+
+  /* O Mestre Ori responde conforme o estado da missão atual e sempre oferece o próximo passo. */
+  async function talk() {
+    let open = null;
+    await run(async () => {
       const b = nextBeat();
       if (S.place === 'casa') {
         if (b) return playBeat(b);
         return say('resp', SMALL_TALK[(S.count + S.days) % SMALL_TALK.length]);
       }
-      if (b) return say('ori', 'Tem alguém te esperando em casa, {nome}. Vá lá — a trilha não foge.');
-      if (S.finished) return say('ori', 'Você percorreu toda a trilha de {trilha}. Mantenha os hábitos do dia: é assim que um mestre continua mestre.');
-      const st = trail().stages[S.stage];
-      const i = st.missions.findIndex((_, k) => !S.done[mid(S.stage, k)]);
-      await say('ori', `Seu próximo passo na trilha: "${st.missions[i]}".`);
-      await say('ori', 'Quando cumprir na vida real, abra "Missões" e registre. Sem pressa: é por você.');
+      if (S.finished) {
+        await say('ori', 'Você percorreu toda a trilha de {trilha}. Os treinos do dia, em "Missões", mantêm a prática em forma.');
+        if (b) await say('ori', 'E passe em casa: alguém quer falar com você.');
+        return;
+      }
+      const id = currentId(), act = actOf(id), state = missionState(id);
+      if (state === 'nova') {
+        await say('ori', `Seu próximo passo na trilha: "${act.title}".`);
+        await say('ori', `${act.intro} A atividade acontece na ${TEACHERS[S.trail].room}, com ${TEACHERS[S.trail].name}.`);
+      } else if (state === 'andamento') {
+        await say('ori', `Você parou na etapa ${S.act.step + 1} de ${ActivityUI.stepsOf(act, S.choices).length} de "${act.title}". É só continuar de onde parou.`);
+      } else {
+        await say('ori', `Você cumpriu o objetivo de "${act.title}"! Falta ver o resultado e receber a recompensa.`);
+      }
+      if (await choose([STATE_LABEL[state], 'Agora não']) === 0) { open = id; return; }
+      await say('ori', b ? 'Tudo bem. Quando puder, passe em casa: alguém quer falar com você.' : 'Sem pressa. Quando quiser, use o botão da atividade ou fale comigo.');
     });
+    if (open) openActivity('act', open);
   }
 
   /* =====================================================
@@ -481,50 +498,114 @@
     S.count++;
   }
 
-  function trailMission(i) {
-    closeModal();
-    run(async () => {
-      const st = trail().stages[S.stage], who = S.place === 'praca' ? 'ori' : 'narr';
-      await say(who, `Missão: "${st.missions[i]}".`);
-      setSpeaker(who);
-      $('dlg-text').textContent = 'Conte em uma frase o que você fez ou aprendeu. O relato vai para o seu diário e vale +10 XP.';
-      const r = await ask('Seu relato...', ['Concluir sem relato', 'Ainda não terminei']);
-      if (r.button === 1) return say(who, 'Sem pressa. Volte quando terminar de verdade.');
-      const note = r.text || '';
-      S.done[mid(S.stage, i)] = true;
-      S.diary.push({ date: today(), mission: st.missions[i], note: note.slice(0, 200) });
-      markActive();
-      const coins = 20 + S.stage * 5;
-      S.coins += coins;
-      Scene.visitGuild();
-      gainXp(40 + S.stage * 10 + (note.length >= 10 ? 10 : 0));
-      toast(`+${coins} moedas`);
-      save();
-      await say(who, note ? 'Relato guardado no diário. Mais um passo dado.' : 'Missão registrada. Mais um passo dado.');
+  /* =====================================================
+     ATIVIDADES
+     ===================================================== */
+  let actSlot = null;       // 'act' (missão da trilha) ou 'prac' (treino do dia) aberto na tela
 
-      if (st.missions.every((_, k) => S.done[mid(S.stage, k)])) {
-        S.coins += 100; toast('+100 moedas');
-        if (S.stage + 1 < trail().stages.length) {
-          S.stage++;
-          await say(who, `Etapa "${st.name}" concluída! Seu novo título é ${rank()}. A próxima etapa é "${trail().stages[S.stage].name}".`);
-        } else {
-          S.stage = trail().stages.length; S.finished = true;
-          await say(who, `Trilha completa! Você é ${rank()} de ${trail().name}. O que começou como jogo agora faz parte da sua história de verdade.`);
-        }
-      }
-      if (nextBeat() && S.place === 'praca') await say('narr', 'Já está tarde. Alguém em casa quer falar com você.');
+  const currentIndex = () => (S.finished ? -1 : trail().stages[S.stage].missions.findIndex((_, k) => !S.done[mid(S.stage, k)]));
+  function currentId() { const i = currentIndex(); return i < 0 ? null : mid(S.stage, i); }
+  /* 'nova' | 'andamento' | 'cumprida' (todas as etapas feitas, recompensa ainda não recebida) */
+  function missionState(id, slot = 'act') {
+    const a = S[slot];
+    if (!a || a.id !== id) return 'nova';
+    return a.step >= ActivityUI.stepsOf(actOf(id), S.choices).length ? 'cumprida' : 'andamento';
+  }
+
+  function openActivity(slot, id) {
+    if (busy || !actOf(id)) return;
+    closeModal();
+    if (slot === 'act' && (S.done[id] || id !== currentId())) return;              // só a missão atual da trilha
+    if (slot === 'prac') { const i = S.daily.ids.indexOf(id); if (i < 0 || S.daily.done[i]) return; }
+    if (!S[slot] || S[slot].id !== id) S[slot] = { id, step: 0, errors: 0, date: today() };
+    save();
+    actSlot = slot;
+    Scene.start($('scene'), { place: 'room', room: S.trail, hero: S.look, npc: TEACHERS[S.trail].look });
+    $('actions').hidden = true; $('dialog').hidden = true; $('activity').hidden = false;
+    renderMain();
+    ActivityUI.mount($('activity'), actOf(id), S[slot], {
+      choices: S.choices, fmt, save, anim: n => Scene.play(n), teacher: TEACHERS[S.trail], practice: slot === 'prac',
+      onExit: closeActivity, onComplete: () => showResult(slot),
     });
   }
 
-  function completeDaily(i) {
-    if (S.daily.done[i]) return;
-    S.daily.done[i] = true;
+  /* Sai da sala e volta ao cenário principal. O progresso da atividade fica salvo. */
+  function closeActivity() {
+    actSlot = null;
+    $('activity').hidden = true; $('activity').replaceChildren(); $('actions').hidden = false;
+    Scene.start($('scene'), { place: S.place, cls: S.cls, color: trail().color, hero: S.look, npc: npcFor(S.place) });
+    save(); renderMain();
+  }
+
+  const rewardOf = slot => (slot === 'prac' ? { xp: 15, coins: 8 } : { xp: 40 + S.stage * 10, coins: 20 + S.stage * 5 });
+
+  /* Todas as etapas cumpridas: mostra o resultado. A recompensa só sai no botão. */
+  function showResult(slot) {
+    const st = S[slot], act = actOf(st.id), host = $('activity'), r = rewardOf(slot);
+    host.replaceChildren();
+    const head = el('div', 'act-head'); head.append(el('span', 'act-title', act.title), el('span', 'act-step ok', 'Objetivo cumprido'));
+    const nav = el('div', 'act-nav');
+    const out = el('button', 'btn ghost', 'Sair'); out.type = 'button'; out.onclick = closeActivity;
+    const get = el('button', 'btn primary act-main', 'Receber recompensa'); get.type = 'button'; get.onclick = () => claim(slot);
+    nav.append(out, get);
+    host.append(head, el('p', 'act-text', fmt(act.done)),
+      el('p', 'dim', st.errors ? `Você precisou de ${st.errors} nova(s) tentativa(s) no caminho. Errar e corrigir faz parte.` : 'Você acertou tudo de primeira.'),
+      el('p', 'act-reward', `Recompensa: +${r.xp} XP · +${r.coins} moedas${S.coffee ? ' (XP em dobro pelo café)' : ''}`), nav);
+    renderMain();
+  }
+
+  /* Entrega a recompensa uma única vez: quem decide é o estado salvo, não o clique. */
+  function claim(slot) {
+    const st = S[slot];
+    if (!st) return;
+    const id = st.id, act = actOf(id), prac = slot === 'prac', r = rewardOf(slot), notes = [];
+    const idx = prac ? S.daily.ids.indexOf(id) : -1;
+    const already = prac ? (idx < 0 || S.daily.done[idx]) : !!S.done[id];
+    S[slot] = null;
+    if (already) { save(); return closeActivity(); }
+    if (prac) S.daily.done[idx] = true; else S.done[id] = true;
     markActive();
-    S.coins += 8;
-    gainXp(15);
-    toast('+8 moedas');
-    if (S.daily.done.every(Boolean)) { S.coins += 20; toast('Dia completo! +20 moedas'); }
-    save(); renderMain(); renderTab('missoes');
+    S.coins += r.coins;
+    gainXp(r.xp);
+    toast(`+${r.coins} moedas`);
+    S.results[id] = { date: today(), errors: st.errors || 0, times: ((S.results[id] || {}).times || 0) + 1 };
+    let entry = null;
+    if (prac) {
+      if (S.daily.done.length === 3 && S.daily.done.every(Boolean)) { S.coins += 20; toast('+20 moedas'); notes.push('Você fez os três treinos de hoje: bônus de 20 moedas.'); }
+    } else {
+      entry = { date: today(), mission: act.title, note: '' };
+      S.diary.push(entry);
+      const st0 = trail().stages[S.stage];
+      if (st0.missions.every((_, k) => S.done[mid(S.stage, k)])) {
+        S.coins += 100; toast('+100 moedas');
+        if (S.stage + 1 < trail().stages.length) {
+          S.stage++;
+          notes.push(`Etapa "${st0.name}" concluída: +100 moedas. Seu novo título é ${rank()}, e a próxima etapa é "${trail().stages[S.stage].name}".`);
+        } else {
+          S.stage = trail().stages.length; S.finished = true;
+          notes.push(`Trilha completa! Você é ${rank()} de ${trail().name}.`);
+        }
+      }
+    }
+    ensureDaily();
+    save();
+
+    const host = $('activity'); host.replaceChildren();
+    const head = el('div', 'act-head'); head.append(el('span', 'act-title', act.title), el('span', 'act-step ok', 'Recompensa recebida'));
+    host.append(head, el('p', 'act-reward', `+${r.xp} XP · +${r.coins} moedas`));
+    notes.forEach(n => host.append(el('p', 'act-text', n)));
+    host.append(el('p', 'act-text', 'Próximo objetivo: ' + nextObjective()));
+    const back = el('button', 'btn primary act-main', 'Voltar à vila'); back.type = 'button'; back.onclick = closeActivity;
+    back.disabled = true; setTimeout(() => { back.disabled = false; }, 600);      // um clique duplo não pula esta tela
+    if (entry) {                                             // reflexão opcional: não substitui a atividade
+      const form = el('form', 'dlg-form'), input = el('input', 'act-text-in'), keep = el('button', 'btn', 'Guardar');
+      input.type = 'text'; input.maxLength = 200; input.placeholder = 'Opcional: anote uma reflexão no diário'; keep.type = 'submit';
+      form.append(input, keep);
+      form.onsubmit = e => { e.preventDefault(); const v = input.value.trim(); if (!v) return; entry.note = v; save(); form.replaceWith(el('p', 'ok', 'Reflexão guardada no diário.')); };
+      host.append(form);
+    }
+    const nav = el('div', 'act-nav'); nav.append(el('span'), back); host.append(nav);
+    renderMain();
   }
 
   function buy(item) {
@@ -532,25 +613,29 @@
     S.coins -= item.price;
     if (item.id === 'cafe') { S.coffee = true; toast('Café na mochila'); }
     if (item.id === 'livro') gainXp(60, false);
-    if (item.id === 'troca') { ensureDaily(true); toast('Novas missões do dia'); }
+    if (item.id === 'troca') { ensureDaily(true); toast('Treinos trocados'); }
     save(); renderMain(); renderTab('loja');
   }
 
   /* =====================================================
      TELA PRINCIPAL
      ===================================================== */
-  function objective() {
-    const b = nextBeat();
+  /* O que fazer agora, fora de uma atividade. */
+  function nextObjective() {
     if (!S.introDone) return 'Converse com o Mestre Ori.';
+    const id = currentId(), state = id && missionState(id), b = nextBeat();
+    if (state === 'cumprida') return 'Receba a recompensa da atividade concluída.';
+    if (state === 'andamento') return `Continue a atividade: ${actOf(id).title}.`;
     if (b) {
       if (S.place === 'casa') return 'Converse com quem está em casa.';
       return b.id === 'b1' ? 'Está ficando tarde. Volte para casa.' : 'Alguém em casa quer falar com você.';
     }
-    if (!S.finished) {
-      const st = trail().stages[S.stage];
-      return 'Trilha: ' + st.missions.find((_, k) => !S.done[mid(S.stage, k)]);
-    }
-    return 'Mantenha os hábitos do dia.';
+    if (id) return `Trilha: ${actOf(id).title}.`;
+    return 'Faça os treinos do dia, em "Missões".';
+  }
+  function objective() {
+    const open = actSlot && S[actSlot];
+    return open ? `Atividade: ${actOf(open.id).title}` : nextObjective();
   }
 
   function renderMain() {
@@ -561,13 +646,17 @@
     xp.append(el('span', '', `Nv ${S.level}`), bar);
     hud.append(el('span', 'name', S.name), el('span', '', `${S.age} anos`), xp, el('span', '', `🪙 ${S.coins}`), el('span', '', `Dia ${S.days}`));
 
-    const obj = $('objective'); obj.replaceChildren(el('b', '', 'OBJETIVO'), el('span', '', objective()));
-    const go = $('act-go');
+    $('objective').replaceChildren(el('b', '', 'OBJETIVO'), el('span', '', objective()));
+    const beatHere = nextBeat(), id = currentId(), state = id && missionState(id);
+    const go = $('act-go'), ms = $('act-mission');
     go.textContent = S.place === 'praca' ? 'Ir para casa' : 'Ir para a praça';
-    go.className = 'btn' + (nextBeat() && S.place === 'praca' ? ' primary' : '');
-    $('act-talk').className = 'btn' + (nextBeat() && S.place === 'casa' ? ' primary' : '');
+    go.className = 'btn' + (beatHere && S.place === 'praca' && state === 'nova' ? ' primary' : '');
+    $('act-talk').className = 'btn' + (beatHere && S.place === 'casa' && state === 'nova' ? ' primary' : '');
+    ms.hidden = !id || !S.introDone;
+    if (id) { ms.textContent = STATE_LABEL[state]; ms.className = 'btn' + (state !== 'nova' || !beatHere ? ' primary' : ''); }
   }
 
+  $('act-mission').onclick = () => { const id = currentId(); if (id) openActivity('act', id); };
   $('act-go').onclick = () => { if (!busy) goTo(S.place === 'praca' ? 'casa' : 'praca'); };
   $('act-talk').onclick = talk;
 
@@ -582,11 +671,13 @@
   $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-  function missionItem(text, reward, done, onDone) {
-    const li = el('li', done ? 'done' : ''), meta = el('div', 'meta');
+  /* Linha de missão: mostra o estado e, se for a vez dela, o botão que abre a atividade. */
+  function missionItem(text, reward, status, label, onOpen) {
+    const li = el('li', status === 'feita' ? 'done' : ''), meta = el('div', 'meta');
     meta.append(el('span', '', reward));
-    if (done) meta.append(el('span', 'ok', '✔ Feita'));
-    else { const b = el('button', 'btn', 'Concluir'); b.onclick = onDone; meta.append(b); }
+    if (status === 'feita') meta.append(el('span', 'ok', '✔ Feita'));
+    else if (status === 'bloqueada') meta.append(el('span', 'dim', 'Conclua a anterior'));
+    else { const b = el('button', 'btn', label); b.onclick = onOpen; meta.append(b); }
     li.append(el('span', 'mt', text), meta);
     return li;
   }
@@ -599,13 +690,21 @@
       body.append(sb);
       const ul = el('ul', 'list');
       if (S.finished) ul.append(el('li', '', `Trilha completa! Você é ${rank()} de ${trail().name}.`));
-      else trail().stages[S.stage].missions.forEach((m, i) =>
-        ul.append(missionItem(m, `+${40 + S.stage * 10} XP · +${20 + S.stage * 5} moedas`, !!S.done[mid(S.stage, i)], () => trailMission(i))));
+      else {
+        const cur = currentIndex();
+        trail().stages[S.stage].missions.forEach((m, i) => {
+          const id = mid(S.stage, i);
+          const status = S.done[id] ? 'feita' : i === cur ? 'atual' : 'bloqueada';
+          ul.append(missionItem(m, `+${40 + S.stage * 10} XP · +${20 + S.stage * 5} moedas`, status, STATE_LABEL[missionState(id)], () => openActivity('act', id)));
+        });
+      }
       body.append(ul);
 
-      body.append(el('h3', '', 'Missões do dia' + (S.streak ? ` — ${S.streak} dia(s) seguidos` : '')));
+      body.append(el('h3', '', 'Treinos do dia' + (S.streak ? ` — ${S.streak} dia(s) seguidos` : '')));
+      if (!S.daily.ids.length) { body.append(el('p', 'dim', 'Conclua a primeira missão da trilha para liberar os treinos. Cada treino é uma atividade que você já fez, para praticar de novo.')); return; }
       const dl = el('ul', 'list');
-      S.daily.items.forEach((m, i) => dl.append(missionItem(m, '+15 XP · +8 moedas', S.daily.done[i], () => completeDaily(i))));
+      const PRAC = { nova: 'Treinar', andamento: 'Continuar', cumprida: 'Receber recompensa' };
+      S.daily.ids.forEach((id, i) => dl.append(missionItem(actOf(id).title, '+15 XP · +8 moedas', S.daily.done[i] ? 'feita' : 'atual', PRAC[missionState(id, 'prac')], () => openActivity('prac', id))));
       body.append(dl);
     },
     diario(body) {
@@ -646,7 +745,8 @@
       const dl = el('dl', 'sheet');
       const rowOf = (k, v) => dl.append(el('dt', '', k), el('dd', '', v));
       rowOf('Nível', `${S.level} (XP ${S.xp}/${xpNeed(S.level)})`);
-      rowOf('Jornada', `Dia ${S.days} · ${S.count} missão(ões) cumprida(s)`);
+      rowOf('Jornada', `Dia ${S.days} · ${S.count} atividade(s) concluída(s)`);
+      if (S.choices.curso) rowOf('Curso', S.choices.curso.label);
       rowOf('Dinheiro pessoal', `${S.coins} moedas`);
       if (S.story.income) rowOf('Renda', `+${S.story.income} moedas por dia de jogo (${S.story.incomeLabel})`);
       // A realidade da família só aparece aqui depois de descoberta na história.
