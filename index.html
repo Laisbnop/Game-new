@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Trilha — RPG de vida na vila</title>
+  <title>Trilha — vida no campo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
   <section id="screen-title" class="screen" hidden>
     <div class="frame"><canvas id="title-canvas" class="pixel" width="256" height="160"></canvas></div>
     <h1 class="logo">TRILHA</h1>
-    <p class="subtitle">RPG de vida na vila</p>
+    <p class="subtitle">Uma vida no campo</p>
     <div class="win notice" id="save-notice" hidden></div>
     <div class="win title-menu">
       <button id="btn-continue" class="menu-item" hidden>Continuar</button>
@@ -68,28 +68,34 @@
             <div class="who" id="dlg-who"></div>
             <div class="text" id="dlg-text"></div>
             <div class="choices" id="dlg-choices"></div>
+            <form class="dlg-form" id="dlg-form" hidden>
+              <input id="dlg-input" type="text" maxlength="12" autocomplete="off">
+              <button class="btn primary" type="submit">Confirmar</button>
+            </form>
           </div>
           <div class="more" id="dlg-more">▼</div>
         </div>
 
-        <!-- bancada de trabalho: abre no ponto onde a tarefa acontece -->
-        <div class="win work" id="work" hidden></div>
-
-        <!-- barra discreta: painéis e controles de toque -->
-        <div class="dock" id="bar">
-          <div class="touch" id="touch" aria-label="Controles de direção">
-            <button class="tb up" data-dir="up" aria-label="Cima">▲</button>
-            <button class="tb left" data-dir="left" aria-label="Esquerda">◀</button>
-            <button class="tb right" data-dir="right" aria-label="Direita">▶</button>
-            <button class="tb down" data-dir="down" aria-label="Baixo">▼</button>
+        <!-- barra de itens, painéis e controles de toque -->
+        <div class="dock" id="dock">
+          <div class="hotbar-wrap">
+            <div class="hotbar" id="hotbar" aria-label="Barra de itens"></div>
+            <div class="equipped" id="equipped"></div>
           </div>
-          <nav class="actions" id="actions">
-            <button class="btn" data-tab="tarefas">Tarefas</button>
-            <button class="btn" data-tab="mochila">Mochila</button>
-            <button class="btn" data-tab="diario">Diário</button>
-            <button class="btn" data-tab="ficha">Ficha</button>
-          </nav>
-          <button class="tb act" id="touch-act" aria-label="Interagir">E</button>
+          <div class="dock-row">
+            <div class="touch" id="touch" aria-label="Controles de direção">
+              <button class="tb up" data-dir="up" aria-label="Cima">▲</button>
+              <button class="tb left" data-dir="left" aria-label="Esquerda">◀</button>
+              <button class="tb right" data-dir="right" aria-label="Direita">▶</button>
+              <button class="tb down" data-dir="down" aria-label="Baixo">▼</button>
+            </div>
+            <nav class="actions" id="actions">
+              <button class="btn" data-tab="mochila">Mochila</button>
+              <button class="btn" data-tab="diario">Diário</button>
+              <button class="btn" data-tab="amizades">Amizades</button>
+            </nav>
+            <button class="tb act" id="touch-act" aria-label="Interagir ou usar o item">E</button>
+          </div>
         </div>
       </div>
     </div>
@@ -98,10 +104,9 @@
     <div class="modal" id="modal" hidden>
       <div class="win modal-win" role="dialog" aria-modal="true" aria-label="Menu">
         <div class="tabs" id="tabs">
-          <button data-tab="tarefas">Tarefas</button>
           <button data-tab="mochila">Mochila</button>
           <button data-tab="diario">Diário</button>
-          <button data-tab="ficha">Ficha</button>
+          <button data-tab="amizades">Amizades</button>
           <button class="close" id="modal-close" aria-label="Fechar">✕</button>
         </div>
         <div class="modal-body" id="modal-body"></div>
@@ -115,11 +120,8 @@
   </section>
 
   <script src="js/data.js"></script>
-  <script src="js/story.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/world.js"></script>
-  <script src="js/tasks.js"></script>
-  <script src="js/minigames.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
