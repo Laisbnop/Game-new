@@ -12,17 +12,45 @@ crescem.
 Abra o `index.html` no navegador (com as pastas `css/` e `js/` ao lado) ou jogue
 pelo GitHub Pages. Não precisa instalar nada.
 
-| Ação | Teclado | Celular |
+| Ação | Computador | Celular |
 | --- | --- | --- |
 | Andar | Setas (ou W, A, S, D) | Direcional na tela |
-| Interagir ou usar o item da mão | E ou Espaço | Botão E |
-| Escolher o item da barra | 1 a 9 e 0 | Toque no item |
-| Avançar conversa | E, Espaço ou Enter | Toque na caixa de conversa |
-| Fechar painel | Esc | Botão ✕ |
+| Interagir (porta, baú, cama, morador, galinha) | Clique no alvo | Toque no alvo |
+| Usar a ferramenta, semente ou muda | Clique na terra ou no objeto | Toque na terra ou no objeto |
+| Escolher o item da barra | Clique na barra ou teclas 1 a 9 e 0 | Toque na barra |
+| Avançar conversa | Clique na caixa, E, Espaço ou Enter | Toque na caixa de conversa |
+| Fechar painel | Esc ou clique fora | Botão ✕ |
 
-O botão de ação faz o que estiver indicado na parte de baixo do cenário: falar
-com alguém, abrir uma porta ou usar a ferramenta no chão à frente (o quadrado
-marcado). Com conversa ou painel aberto, o personagem não anda e o relógio para.
+**Só funciona de perto.** O alvo precisa estar ao lado do personagem (na fazenda,
+o quadrado onde você está ou um vizinho). Ao passar o mouse sobre algo, ele fica
+destacado e o nome da ação aparece na parte de baixo do cenário; se estiver longe,
+a dica diz para chegar mais perto, e o clique não faz nada além de avisar. O
+personagem se vira para o alvo e executa a animação.
+
+**A ação depende do item na mão.** Machado corta galhos, árvores e tocos;
+picareta quebra pedras e rochas; foice (ou espada) corta o mato; enxada prepara a
+terra; regador rega (e se enche clicando no lago); semente planta em terra
+preparada; espada golpeia o boneco de treino. Plantação madura e árvore com
+frutos se colhem com qualquer item. Com a ferramenta errada nada é removido e
+nenhuma energia é gasta: uma dica curta diz qual usar.
+
+**Vários golpes.** Galhos, pedras, tocos, árvores e rochas resistem: cada clique
+com a ferramenta certa é um golpe, com animação, lascas e energia gasta. Uma
+barrinha mostra quanto falta. Segurar o botão não repete golpes, e cliques
+durante a animação são ignorados. O dano parcial fica salvo, mesmo trocando de
+ferramenta, saindo da área ou fechando o jogo. Sem energia, o golpe não
+acontece; com a mochila cheia, o golpe final espera até haver espaço.
+
+| Objeto | Ferramenta | Golpes | Rende |
+| --- | --- | --- | --- |
+| Mato | foice ou espada | 1 | — |
+| Galho | machado | 2 | 1 madeira |
+| Pedra | picareta | 3 | 1 pedra |
+| Toco | machado | 4 | 2 madeiras |
+| Árvore do bosque | machado | 5 | 3 madeiras (fica um toco) |
+| Rocha do bosque | picareta | 5 | 2 pedras |
+
+Com um painel ou conversa aberta, cliques no cenário não fazem nada.
 
 ## Personagem
 
@@ -38,7 +66,7 @@ cabelo, roupas e chapéu a qualquer momento. A idade é 17 anos e não avança.
 Um mapa externo maior que a tela, com a câmera acompanhando o personagem:
 
 - **Fazenda** (oeste): casa, 200 canteiros de terra — parte tomada por mato,
-  galhos e pedras —, lago para encher o regador, galinheiro com cercado e um
+  galhos, pedras e tocos —, lago para encher o regador, galinheiro com cercado e um
   boneco de treino.
 - **Vila** (centro): praça com fonte, Armazém e as casas dos moradores.
 - **Bosque** (leste): árvores comuns, rochas, amoras, cogumelos e flores.
@@ -47,9 +75,9 @@ Interiores: a **casa** (cama, baú e guarda-roupa) e o **Armazém**.
 
 ## Fazenda
 
-- **Ferramentas** (gastam energia): enxada ara, regador rega (10 usos por carga),
-  machado corta galhos e árvores comuns, picareta quebra pedras, foice corta o
-  mato. A espada simples serve para treinar no boneco.
+- **Ferramentas** (gastam energia a cada uso ou golpe): enxada ara, regador rega
+  (10 usos por carga), machado corta galhos, tocos e árvores comuns, picareta
+  quebra pedras, foice corta o mato. A espada simples serve para treinar no boneco.
 - **Cultivos**: rabanete (2 dias, semente 8, vende 18), tomate (4 dias, 15 → 40)
   e abóbora (6 dias, 25 → 75). Cada dia regado conta um dia de crescimento; sem
   rega a planta pausa, mas não morre. O crescimento acontece só ao dormir.
@@ -60,15 +88,15 @@ Interiores: a **casa** (cama, baú e guarda-roupa) e o **Armazém**.
   (até 4). Cada porção de ração no comedouro alimenta uma galinha por noite, e
   galinha alimentada bota um ovo, que aparece no ninho na manhã seguinte. Dá
   para dar nome, fazer carinho (uma vez por dia) e ver o bem-estar.
-- **Bosque**: árvores cortadas voltam em 4 dias e rochas em 3; os itens de
-  coleta mudam de lugar todo dia.
+- **Bosque**: a árvore cortada deixa um toco, que também pode ser removido;
+  ela volta em 4 dias e as rochas em 3. Os itens de coleta mudam de lugar todo dia.
 
 ## Moradores e amizade
 
 Cinco moradores, cada um com rotina, personalidade e gostos: Dona Celeste
 (Armazém), Seu Honório, Bia, Tomé e Iara. A amizade vai de 0 a 5 corações:
 
-- a primeira conversa do dia dá pontos; as seguintes continuam disponíveis, sem pontos;
+- clique no morador para conversar; a primeira conversa do dia dá pontos; as seguintes continuam disponíveis, sem pontos;
 - cada morador aceita um presente por dia (com um produto na mão, a conversa oferece a opção), e os preferidos rendem mais;
 - com 1 coração surge o pedido pessoal de cada um; com 3, uma pequena cena e um presente;
 - as falas mudam conforme a amizade. Não há romance.
@@ -85,7 +113,7 @@ recompensa é dada uma única vez.
 ## Dias, energia e loja
 
 O relógio vai das 6h até o fim da noite, com a luz mudando entre manhã, tarde e
-noite. Nada de ruim acontece se anoitecer: o dia só termina quando você dorme, o
+noite, e para enquanto há conversa ou painel aberto. Nada de ruim acontece se anoitecer: o dia só termina quando você dorme, o
 que recupera a energia e mostra um resumo da noite. Andar e conversar não
 gastam energia.
 

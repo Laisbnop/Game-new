@@ -132,11 +132,11 @@ const villagerById = id => VILLAGERS.find(v => v.id === id);
    start.items = itens recebidos ao aceitar · after = missão anterior · hearts = corações mínimos com quem pede
    auto = começa sozinha · selfDone = conclui sozinha ao cumprir (as de aprendizado). */
 const QUESTS = {
-  chegada:  { giver: 'celeste', title: 'Boas-vindas à vila', auto: true, desc: 'Siga a estrada para o leste até a vila e fale com Dona Celeste no Armazém.',
+  chegada:  { giver: 'celeste', title: 'Boas-vindas à vila', auto: true, desc: 'Siga a estrada para o leste até a vila, entre no Armazém e clique em Dona Celeste para conversar.',
     goal: { talk: 1 }, done: ['Então é você quem veio cuidar do Sítio Beira-Rio! A vila inteira estava esperando.', 'Leve estas sementes de rabanete: é presente de boas-vindas. Brotam rápido.'],
     reward: { items: { sem_rabanete: 6 }, friend: 20 } },
   plantio:  { giver: 'celeste', title: 'A primeira plantação', after: 'chegada', auto: true, selfDone: true,
-    desc: 'Na sua fazenda: are 3 canteiros com a enxada, plante as sementes e regue. Escolha o item na barra (teclas 1 a 0) e use E de frente para o chão.',
+    desc: 'Na sua fazenda: are 3 canteiros com a enxada, plante as sementes e regue. Escolha o item na barra e clique (ou toque) na terra ao seu lado.',
     goal: { count: { till: 3, plant: 3, water: 3 } }, reward: { coins: 20 } },
   colheita: { giver: 'celeste', title: 'A primeira colheita', after: 'plantio', auto: true, selfDone: true,
     desc: 'Regue todos os dias e durma na sua cama: as plantas crescem à noite. Colha 3 cultivos maduros e venda ou guarde.',
@@ -174,3 +174,15 @@ const QUESTS = {
 };
 
 const COUNT_LABEL = { till: 'canteiros arados', plant: 'sementes plantadas', water: 'canteiros regados', harvest: 'cultivos colhidos', feed: 'porções no comedouro' };
+
+/* Objetos que exigem vários golpes. hp = golpes necessários; energy = energia por golpe;
+   tools = ferramentas que funcionam; drop = o que rende ao quebrar; fx = tipo de lasca. */
+const RESIST = {
+  weed:   { name: 'Mato',   verb: 'Cortar',   tools: ['foice', 'espada'], hp: 1, energy: 1, fx: 'leaf' },
+  branch: { name: 'Galho',  verb: 'Cortar',   tools: ['machado'],  hp: 2, energy: 2, drop: ['madeira', 1], fx: 'wood' },
+  stone:  { name: 'Pedra',  verb: 'Quebrar',  tools: ['picareta'], hp: 3, energy: 2, drop: ['pedra', 1],   fx: 'stone' },
+  stump:  { name: 'Toco',   verb: 'Quebrar',  tools: ['machado'],  hp: 4, energy: 2, drop: ['madeira', 2], fx: 'wood' },
+  trunk:  { name: 'Árvore', verb: 'Cortar',   tools: ['machado'],  hp: 5, energy: 2, drop: ['madeira', 3], fx: 'wood' },
+  rock:   { name: 'Rocha',  verb: 'Quebrar',  tools: ['picareta'], hp: 5, energy: 2, drop: ['pedra', 2],   fx: 'stone' },
+};
+const TOOL_NAME = { machado: 'o machado', picareta: 'a picareta', foice: 'a foice', espada: 'a espada', enxada: 'a enxada', regador: 'o regador' };

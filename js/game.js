@@ -29,7 +29,7 @@
       pos: { map: 'fora', x: 96, y: 166, dir: 'down' },
       inv: Array(INV_SIZE).fill(null), sel: 0, chest: Array(CHEST_SIZE).fill(null), can: 10,
       farm: { tiles: {} }, coop: { feed: 0, eggs: 0, hens: [] },
-      nature: { trees: {}, rocks: {}, forage: {}, hat: false },
+      nature: { trees: {}, rocks: {}, forage: {}, hat: false, cleared: {} }, dmg: {}, stumps: true,
       friends: {}, daily: { talk: {}, gift: {} }, known: {}, scenes: {},
       quests: {}, world: { banco: false }, dummy: 0, intro: false, seed,
     };
@@ -39,7 +39,7 @@
     for (let i = 0; i < World.GRID.cols * World.GRID.rows; i++) {
       const c = i % World.GRID.cols, r = Math.floor(i / World.GRID.cols), p = rnd();
       if ((c < 6 && r < 3) || p > 0.5) continue;
-      s.farm.tiles[i] = { k: p < 0.22 ? 'weed' : p < 0.37 ? 'branch' : 'stone' };
+      s.farm.tiles[i] = { k: p < 0.22 ? 'weed' : p < 0.37 ? 'branch' : p < 0.46 ? 'stone' : 'stump' };
     }
     VILLAGERS.forEach(v => { s.friends[v.id] = 0; s.known[v.id] = {}; });
     refreshForage(s);
@@ -81,7 +81,7 @@
   let DEMO = null;
   function initTitle() {
     S = null; show('title');
-    if (!DEMO) { DEMO = newState(DEFAULT_LOOK, ''); [0, 1, 2].forEach(i => { DEMO.farm.tiles[i] = { k: 'soil', w: 1, crop: 'tomate', g: i + 2 }; }); DEMO.coop.hens = [{ name: '', well: 80 }, { name: '', well: 80 }]; }
+    if (!DEMO) { DEMO = newState(DEFAULT_LOOK, ''); upgrade(DEMO); [0, 1, 2].forEach(i => { DEMO.farm.tiles[i] = { k: 'soil', w: 1, crop: 'tomate', g: i + 2 }; }); DEMO.coop.hens = [{ name: '', well: 80 }, { name: '', well: 80 }]; }
     const found = inspectSaves(), notice = $('save-notice'), cont = $('btn-continue');
     notice.hidden = true; cont.hidden = true; cont.textContent = 'Continuar';
     if (found.state) { cont.hidden = false; cont.onclick = () => { S = found.state; startGame(); }; }
@@ -219,7 +219,8 @@
   let map = null;
   const P = { x: 0, y: 0, dir: 'down', moving: false, work: 0, tool: null, hop: 0 };
   const keys = {};
-  let busy = false, near = null, lastSave = 0, clockAcc = 0, floats = [], dummyHit = 0, hens = [], hits = {};
+  let busy = false, hover = null, lastSave = 0, clockAcc = 0, floats = [], dummyHit = 0, hens = [], impacts = [], shake = null;
+  const COARSE = window.matchMedia && matchMedia('(pointer: coarse)').matches;
 
   const hearts = id => Math.floor((S.friends[id] || 0) / 100);
   const addFriend = (id, pts) => { const before = hearts(id); S.friends[id] = Math.max(0, Math.min(FRIEND.max, (S.friends[id] || 0) + pts)); if (hearts(id) > before) toast(`${villagerById(id).name}: ${hearts(id)} coração(ões)`); };
@@ -254,7 +255,18 @@
   /* =====================================================
      INÍCIO E LAÇO PRINCIPAL
      ===================================================== */
+  /* Campos criados depois (salvamentos anteriores continuam valendo). */
+  function upgrade(s) {
+    s.dmg = s.dmg || {};
+    s.nature.cleared = s.nature.cleared || {};
+    if (!s.stumps) {                                    // alguns tocos em grama livre, longe da casa
+      let sd = s.seed >>> 0, placed = 0; const rnd = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
+      for (let k = 0; k < 400 && placed < 4; k++) { const i = 80 + Math.floor(rnd() * 120); if (!s.farm.tiles[i]) { s.farm.tiles[i] = { k: 'stump' }; placed++; } }
+      s.stumps = true;
+    }
+  }
   function startGame() {
+    upgrade(S);
     show('game');
     closeModal();
     enterMap(S.pos.map, S.pos.x, S.pos.y, S.pos.dir);
@@ -264,7 +276,7 @@
     if (!S.intro) run(async () => {
       await say('narr', 'A carroça da manhã deixa você diante de uma casinha de telhado torto: o Sítio Beira-Rio, na Vila Aroeira.');
       await say('narr', `Você tem ${S.age} anos, uma mochila e uma carta do conselho da vila: o sítio estava abandonado, e decidiram confiá-lo a quem tivesse coragem de recomeçar. As ferramentas são usadas, doadas pelos moradores.`);
-      await say('narr', 'Ande com as setas (ou W, A, S, D). Chegue perto de pessoas, portas e objetos e aperte E ou Espaço. As teclas 1 a 0 escolhem o item da barra; com uma ferramenta na mão, E usa a ferramenta no chão à sua frente.');
+      await say('narr', COARSE ? 'Ande com as setas da tela. Chegue perto e toque em pessoas, portas e objetos para interagir. Toque na barra para escolher o item; com uma ferramenta na mão, toque na terra ou no objeto ao seu lado.' : 'Ande com as setas (ou W, A, S, D). Chegue perto e clique em pessoas, portas e objetos para interagir. Clique na barra ou use as teclas 1 a 0 para escolher o item; com uma ferramenta na mão, clique na terra ou no objeto ao seu lado. Troncos, tocos e pedras pedem vários golpes: um clique para cada.');
       await say('narr', 'Não há pressa nem fim: os dias passam quando você dorme. Para começar, siga a estrada para o leste e apresente-se no Armazém.');
       S.intro = true;
     });
@@ -290,7 +302,7 @@
       if (o.k !== 'tree') return true;
       const q = World.tilePos(i); if (px > q.x + 3 && px < q.x + 13 && py > q.y + 6) return true;
     }
-    for (let i = 0; i < World.NTREES.length; i++) { const [tx, ty] = World.NTREES[i]; if (Math.abs(x - tx) < 9 && y > ty - 7 && y < ty + 5) return true; }
+    for (let i = 0; i < World.NTREES.length; i++) { if (S.nature.cleared[i]) continue; const [tx, ty] = World.NTREES[i]; if (Math.abs(x - tx) < 9 && y > ty - 7 && y < ty + 5) return true; }
     for (let i = 0; i < World.NROCKS.length; i++) { if (S.nature.rocks[i]) continue; const [tx, ty] = World.NROCKS[i]; if (Math.abs(x - tx) < 13 && y > ty - 12 && y < ty + 5) return true; }
     return false;
   }
@@ -329,9 +341,11 @@
     if (free && S.time < 1439) { clockAcc += dt; if (clockAcc >= 700) { clockAcc -= 700; S.time++; if (S.time % 10 === 0) renderHud(); } }
     floats = floats.filter(f => t - f.t0 < 700);
     updateHens(dt, t);
-    near = free && !P.work ? resolve(list) : null;
-    const hint = $('hint'), text = near ? near.label : '';
-    if (hint.dataset.t !== text) { hint.dataset.t = text; hint.hidden = !text; hint.replaceChildren(el('b', '', 'E'), el('span', '', text)); $('touch-act').classList.toggle('on', !!(near && near.act)); }
+    impacts = impacts.filter(f => t - f.t0 < 400);
+    hover = null;
+    if (free && mouse) { const [wx, wy] = mouseWorld(), tg = targetAt(wx, wy, list); if (tg) { tg.ok = reachable(tg); hover = tg; } }
+    const hint = $('hint'), text = hover ? (hover.ok ? hover.label : `${hover.label.split(' — ')[0]} — chegue mais perto`) : '';
+    if (hint.dataset.t !== text) { hint.dataset.t = text; hint.hidden = !text; hint.classList.toggle('far', !!(hover && !hover.ok)); hint.replaceChildren(el('b', '', COARSE ? 'TOQUE' : 'CLIQUE'), el('span', '', text)); }
     if (t - lastSave > 2500) { lastSave = t; S.pos.x = Math.round(P.x); S.pos.y = Math.round(P.y); S.pos.dir = P.dir; save(); }
   }
 
@@ -347,29 +361,132 @@
   function draw(t, list) {
     const cam = World.camera(map, P.x, P.y), ctx = $('scene').getContext('2d');
     const me = { look: S.look, x: P.x, y: P.y, dir: P.dir, moving: P.moving, tool: P.tool, hop: P.hop && t < P.hop ? -Math.abs(Math.sin((P.hop - t) / 80)) * 4 : 0 };
-    World.render(ctx, { map, cam, t, state: S, actors: [...list, me], hens: map.id === 'fora' ? hens : [], cursor: near && near.cursor, tint: tint(), floats, dummyHit });
-    if (near && near.act) { const x = Math.round(P.x - cam.x), y = Math.round(P.y - cam.y) - 40 - Math.floor(t / 300) % 2; ctx.fillStyle = '#241a2c'; ctx.fillRect(x - 5, y, 10, 9); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 4, y + 1, 8, 7); ctx.fillStyle = '#241a2c'; ctx.fillRect(x - 2, y + 2, 4, 1); ctx.fillRect(x - 2, y + 4, 3, 1); ctx.fillRect(x - 2, y + 6, 4, 1); ctx.fillRect(x - 2, y + 2, 1, 5); }
+    const cursor = hover && { x: Math.round(hover.rect[0]), y: Math.round(hover.rect[1]), w: Math.round(hover.rect[2]), h: Math.round(hover.rect[3]), far: !hover.ok };
+    World.render(ctx, { map, cam, t, state: S, actors: [...list, me], hens: map.id === 'fora' ? hens : [], cursor, tint: tint(), floats, dummyHit, impacts, shake, bars: map.id === 'fora' ? bars() : [] });
+  }
+  /* Barras de resistência dos objetos com dano parcial (o dano fica salvo). */
+  function bars() {
+    const out = [];
+    for (const key in S.dmg) {
+      const n = +key.slice(1); let x, y, R;
+      if (key[0] === 'f') { const o = S.farm.tiles[n]; if (!o || !RESIST[o.k]) continue; R = RESIST[o.k]; const q = World.tilePos(n); x = q.x + 8; y = q.y - 4; }
+      else if (key[0] === 't') { R = RESIST.trunk; [x, y] = World.NTREES[n]; y -= 54; }
+      else if (key[0] === 's') { R = RESIST.stump; [x, y] = World.NTREES[n]; y -= 16; }
+      else if (key[0] === 'r') { R = RESIST.rock; [x, y] = World.NROCKS[n]; y -= 22; }
+      else continue;
+      out.push({ x, y, frac: Math.max(0, (R.hp - S.dmg[key]) / R.hp) });
+    }
+    return out;
   }
 
   /* =====================================================
-     O QUE O BOTÃO DE AÇÃO FAZ AGORA
+     ALVOS DO MOUSE
+     Um alvo tem: label, rect [x, y, w, h] (área clicável e destaque),
+     near (o que precisa estar ao alcance; padrão = rect), tile (alcance de
+     um quadrado em volta), reach (distância máxima) e act (o que o clique faz).
      ===================================================== */
-  const front = () => { const d = { down: [0, 9], up: [0, -15], left: [-14, -4], right: [14, -4] }[P.dir]; return [P.x + d[0], P.y + d[1]]; };
+  const SWING = 320;                        // duração de um golpe (ms); cliques durante ele são ignorados
+  const inRect = (r, x, y) => x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3];
+  /* Distância dos pés do personagem até um retângulo, em x e em y. */
+  function gap(r) { const fx = P.x, fy = P.y - 3; return [Math.max(r[0] - fx, 0, fx - (r[0] + r[2])), Math.max(r[1] - fy, 0, fy - (r[1] + r[3]))]; }
+  function reachable(tg) { const [dx, dy] = gap(tg.near || tg.rect); return tg.tile ? Math.max(dx, dy) <= 14 : Math.hypot(dx, dy) <= (tg.reach || 16); }
+  const center = r => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+  function faceTo(x, y) { const dx = x - P.x, dy = y - (P.y - 8); P.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
+  const bang = (x, y, k) => impacts.push({ x, y, t0: performance.now(), k });
 
-  /* Devolve { label, act, cursor } para o que está ao alcance, ou null.
-     Ordem: pessoas e galinhas → objetos próximos → o que há no chão à frente (conforme o item na mão). */
-  function resolve(list) {
-    let best = null, bd = 1e9;
-    const offer = (x, y, r, label, act) => { const d = Math.hypot(x - P.x, (y - P.y) * 1.2); if (d <= r && d < bd) { bd = d; best = { label, act }; } };
-    list.forEach(a => offer(a.x, a.y + 4, a.reach, 'Falar com ' + a.name, () => talkTo(a.v)));
-    if (map.id === 'fora') {
-      hens.forEach((h, i) => offer(h.x, h.y, 14, S.coop.hens[i].name, () => henMenu(i)));
-      World.FORAGE.forEach(([x, y], i) => { const id = S.nature.forage[i]; if (id) offer(x, y, 15, 'Colher ' + ITEMS[id].name.toLowerCase(), () => { if (gain(id)) { delete S.nature.forage[i]; save(); } }); });
-      if (S.nature.hat) offer(World.SPOT.hat[0], World.SPOT.hat[1], 15, 'Pegar o chapéu velho', () => { if (gain('chapeu_tome')) { S.nature.hat = false; save(); } });
+  /* O que está sob o ponto (wx, wy) do mundo, do que está mais à frente para o mais ao fundo. */
+  function targetAt(wx, wy, list) {
+    for (const a of list.slice().sort((p, q) => q.y - p.y)) {
+      const r = [a.x - 9, a.y - 27, 18, 29];
+      if (inRect(r, wx, wy)) return { label: 'Falar com ' + a.name, rect: r, reach: a.reach > 30 ? 30 : 16, act: () => talkTo(a.v) };
     }
-    map.objs.forEach(o => { const a = objAction(o); if (a) offer(o.x, o.y, o.r, a.label, a.act); });
-    if (best) return best;
-    return map.id === 'fora' ? groundAction() : null;
+    if (map.id === 'fora') {
+      for (let i = hens.length - 1; i >= 0; i--) { const h = hens[i], r = [h.x - 7, h.y - 15, 14, 16]; if (inRect(r, wx, wy)) return { label: S.coop.hens[i].name, rect: r, act: () => henMenu(i) }; }
+      for (const key in S.farm.tiles) {                     // árvores frutíferas: a copa também é clicável
+        if (S.farm.tiles[key].k !== 'tree') continue;
+        const q = World.tilePos(+key), r = [q.x - 6, q.y - 30, 28, 46];
+        if (inRect(r, wx, wy)) return Object.assign(tileTarget(+key), { rect: r, near: [q.x, q.y, 16, 16] });
+      }
+      const cleared = S.nature.cleared;
+      for (let n = 0; n < World.NTREES.length; n++) {
+        if (cleared[n]) continue;
+        const [x, y] = World.NTREES[n], stumpNow = !!S.nature.trees[n];
+        const r = stumpNow ? [x - 7, y - 10, 14, 12] : [x - 14, y - 48, 28, 52];
+        if (!inRect(r, wx, wy)) continue;
+        return stumpNow ? hitTarget('s' + n, 'stump', r, r, [x, y - 6], () => { cleared[n] = true; })
+          : hitTarget('t' + n, 'trunk', r, [x - 5, y - 8, 10, 8], [x, y - 12], () => { S.nature.trees[n] = S.day + 4; });
+      }
+      for (let n = 0; n < World.NROCKS.length; n++) {
+        if (S.nature.rocks[n]) continue;
+        const [x, y] = World.NROCKS[n], r = [x - 10, y - 16, 20, 18];
+        if (inRect(r, wx, wy)) return hitTarget('r' + n, 'rock', r, r, [x, y - 8], () => { S.nature.rocks[n] = S.day + 3; });
+      }
+      for (let n = 0; n < World.FORAGE.length; n++) {
+        const id = S.nature.forage[n], [x, y] = World.FORAGE[n], r = [x - 8, y - 12, 16, 14];
+        if (id && inRect(r, wx, wy)) return { label: 'Colher ' + ITEMS[id].name.toLowerCase(), rect: r, act: () => { if (gain(id)) { delete S.nature.forage[n]; bang(x, y - 6, 'leaf'); save(); } } };
+      }
+      const [hx, hy] = World.SPOT.hat, hr = [hx - 8, hy - 12, 16, 14];
+      if (S.nature.hat && inRect(hr, wx, wy)) return { label: 'Pegar o chapéu velho', rect: hr, act: () => { if (gain('chapeu_tome')) { S.nature.hat = false; save(); } } };
+    }
+    for (const o of map.objs) {
+      const r = o.hit || [o.x - 10, o.y - 20, 20, 22];
+      if (inRect(r, wx, wy)) { const a = objAction(o); if (a) return Object.assign({ rect: r }, a); }
+    }
+    if (map.id === 'fora') { const i = World.tileAt(wx, wy); if (i >= 0) return tileTarget(i); }
+    return null;
+  }
+
+  /* Objeto que quebra com vários golpes da ferramenta certa. O dano fica salvo em S.dmg. */
+  function hitTarget(key, kind, rect, near, pt, onBreak, tile) {
+    const R = RESIST[kind], it = equipped(), id = it && it.id, d = S.dmg[key] || 0;
+    const status = d ? ` (${R.hp - d}/${R.hp})` : '';
+    if (!R.tools.includes(id)) return { rect, near, tile, reach: 18, label: `${R.name}${status} — use ${TOOL_NAME[R.tools[0]]}`, act: () => tip(`${R.name}: use ${TOOL_NAME[R.tools[0]]}. Escolha na barra de itens.`) };
+    return { rect, near, tile, reach: 18, label: `${R.verb} ${R.name.toLowerCase()}${status}`, act: () => strike(key, R, id, pt, onBreak) };
+  }
+  /* Um golpe: gasta energia, anima, solta lascas e reduz a resistência.
+     No último, remove o objeto e entrega o que ele rende, uma única vez. */
+  function strike(key, R, id, [x, y], onBreak) {
+    const d = (S.dmg[key] || 0) + 1, last = d >= R.hp;
+    if (S.energy < R.energy) return tip('Sem energia para outro golpe. Coma algo ou durma para recuperar.');
+    if (last && R.drop && !canAdd(R.drop[0], R.drop[1])) return tip('Mochila cheia: abra espaço antes do último golpe.');
+    useTool(id, R.energy);
+    bang(x, y, R.fx); shake = { key, t0: performance.now() };
+    if (last) { delete S.dmg[key]; onBreak(); if (R.drop) gain(R.drop[0], R.drop[1]); }
+    else S.dmg[key] = d;
+    save();
+  }
+
+  /* O que um clique faz em um quadrado da fazenda, conforme o item selecionado. */
+  function tileTarget(i) {
+    const o = S.farm.tiles[i], q = World.tilePos(i), rect = [q.x, q.y, 16, 16], cx = q.x + 8, cy = q.y + 8;
+    const it = equipped(), id = it && it.id, kind = id && ITEMS[id].kind;
+    const T = (label, act) => ({ label, act, rect, tile: true });
+    if (o && RESIST[o.k]) return hitTarget('f' + i, o.k, rect, rect, [cx, cy], () => { delete S.farm.tiles[i]; }, true);
+    if (o && o.k === 'soil' && o.crop && o.g >= CROPS[o.crop].days) return T('Colher ' + CROPS[o.crop].name.toLowerCase(), () => {
+      if (!gain(o.crop)) return; S.farm.tiles[i] = { k: 'soil' }; P.hop = performance.now() + 300; bang(cx, cy, 'leaf'); qEvent('harvest'); save();
+    });
+    if (o && o.k === 'tree') {
+      const TR = TREES[o.sp];
+      if (o.fruit) return T(`Colher ${ITEMS[TR.fruit].name.toLowerCase()}s`, () => { if (!gain(TR.fruit, TR.n)) return; o.fruit = false; o.cool = 0; bang(cx, q.y - 14, 'leaf'); save(); });
+      const info = o.age < TR.grow ? `${TR.name} jovem: ${o.age} de ${TR.grow} dias para ficar adulta. Árvores não precisam de rega.` : `${TR.name} adulta. Os frutos voltam ${TR.every - (o.cool || 0) <= 1 ? 'amanhã' : `em ${TR.every - (o.cool || 0)} dias`}.`;
+      return T(TR.name, () => run(() => say('narr', info)));
+    }
+    if (kind === 'sapling') {
+      const ok = !o && [-1, 0, 1].every(dr => [-1, 0, 1].every(dc => { const c = (i % World.GRID.cols) + dc, r = Math.floor(i / World.GRID.cols) + dr; const n = S.farm.tiles[r * World.GRID.cols + c]; return c < 0 || c >= World.GRID.cols || !n || n.k !== 'tree'; }));
+      return ok ? T('Plantar ' + ITEMS[id].name.toLowerCase(), () => { useTool(id, 0); removeItem(id); S.farm.tiles[i] = { k: 'tree', sp: ITEMS[id].tree, age: 0, fruit: false, cool: 0 }; bang(cx, cy, 'soil'); toast('Muda plantada'); save(); })
+        : T('Sem espaço para a muda', () => tip('Não há espaço aqui. A muda precisa de grama livre, sem terra arada, entulho ou outra árvore encostada.'));
+    }
+    if (id === 'enxada') return o ? T('Terra já preparada', () => tip('Esta terra já está preparada.'))
+      : T('Arar a terra', () => { if (!useTool(id, 2)) return; S.farm.tiles[i] = { k: 'soil' }; bang(cx, cy, 'soil'); qEvent('till'); save(); });
+    if (id === 'regador' && o && o.k === 'soil') return o.w ? T(o.crop ? `${CROPS[o.crop].name}: ${o.g} de ${CROPS[o.crop].days} dias, regado` : 'Já regado', () => tip('Esta terra já está regada hoje.'))
+      : T(`Regar (água: ${S.can}/10)`, () => { if (!S.can) return tip('Regador vazio: encha no lago.'); if (!useTool(id, 1)) return; S.can--; o.w = 1; bang(cx, cy, 'water'); if (o.crop) qEvent('water'); renderHotbar(); save(); });
+    if (kind === 'seed') {
+      if (o && o.k === 'soil' && !o.crop) return T('Plantar ' + CROPS[ITEMS[id].crop].name.toLowerCase(), () => { useTool(id, 0); removeItem(id); o.crop = ITEMS[id].crop; o.g = 0; bang(cx, cy, 'soil'); qEvent('plant'); save(); });
+      if (!o) return T('Are a terra antes de plantar', () => tip('Prepare a terra com a enxada antes de plantar.'));
+    }
+    if (o && o.k === 'soil' && o.crop) { const info = `${CROPS[o.crop].name}: ${o.g} de ${CROPS[o.crop].days} dias${o.w ? ', regado' : ', precisa de água'}`; return T(info, () => tip(info)); }
+    if (o && o.k === 'soil') return T('Terra preparada', () => tip('Terra pronta: escolha uma semente na barra e clique para plantar.'));
+    return null;                                              // grama comum sem ferramenta útil: nada a fazer
   }
 
   function objAction(o) {
@@ -381,11 +498,13 @@
       case 'bed': return { label: 'Dormir', act: bed };
       case 'chest': return { label: 'Abrir o baú', act: () => openModal('bau') };
       case 'wardrobe': return { label: 'Guarda-roupa e espelho', act: () => openModal('roupa') };
-      case 'counter': return { label: 'Balcão do Armazém', act: shop };
-      case 'water': return id === 'regador' ? { label: `Encher o regador (${S.can}/10)`, act: () => { useTool('regador', 0); S.can = 10; toast('Regador cheio'); renderHotbar(); save(); } }
-        : { label: 'Lago', act: () => run(() => say('narr', 'Água limpa do lago. Com o regador na mão, dá para enchê-lo aqui.')) };
-      case 'dummy': return id === 'espada' ? { label: 'Golpear o boneco', act: () => { if (!useTool('espada', 1)) return; dummyHit = performance.now() + 120; S.dummy++; toast(`Golpe certeiro! (${S.dummy})`); } }
-        : { label: 'Boneco de treino', act: () => run(() => say('narr', 'Um boneco de palha para treinar. Equipe a espada e golpeie.')) };
+      case 'counter': return { label: 'Balcão do Armazém', reach: 20, act: shop };
+      case 'water': return id === 'regador' ? { label: `Encher o regador (${S.can}/10)`, reach: 18, act: () => { useTool('regador', 0); S.can = 10; bang(P.x, P.y - 16, 'water'); toast('Regador cheio'); renderHotbar(); save(); } }
+        : { label: 'Lago', reach: 18, act: () => run(() => say('narr', 'Água limpa do lago. Com o regador na mão, clique na água para enchê-lo.')) };
+      case 'dummy': return id === 'espada' ? { label: 'Golpear o boneco', act: () => {
+        if (S.energy < 1) return tip('Sem energia para outro golpe. Coma algo ou durma para recuperar.');
+        useTool('espada', 1); dummyHit = performance.now() + 120; bang(World.SPOT.dummy[0], World.SPOT.dummy[1] - 16, 'spark'); S.dummy++; toast(`Golpe certeiro! (${S.dummy})`);
+      } } : { label: 'Boneco de treino — use a espada', act: () => tip('Equipe a espada na barra de itens para treinar no boneco.') };
       case 'bench': return { label: 'Banco da praça', act: () => run(() => say('narr', S.world.banco ? 'O banco da praça, firme de novo. Na madeira, um entalhe discreto: "consertado com a ajuda de ' + S.name + '".' : 'O banco da praça está quebrado: falta uma tábua e um dos pés cedeu.')) };
       case 'feeder': return { label: count('racao') ? `Colocar ração (${S.coop.feed} no comedouro)` : `Comedouro (${S.coop.feed} porções)`, act: feed };
       case 'nest': return { label: S.coop.eggs ? `Pegar ovos (${S.coop.eggs})` : 'Ninho', act: nest };
@@ -393,60 +512,11 @@
     return null;
   }
 
-  /* Ação no chão à frente, conforme o item selecionado. */
-  function groundAction() {
-    const [fx, fy] = front(), it = equipped(), id = it && it.id, kind = id && ITEMS[id].kind;
-    const i = World.tileAt(fx, fy);
-    if (i >= 0) {
-      const o = S.farm.tiles[i], q = World.tilePos(i), cursor = { x: q.x, y: q.y, w: 16, h: 16 };
-      const A = (label, act) => ({ label, act, cursor });
-      if (o && o.k === 'soil' && o.crop && o.g >= CROPS[o.crop].days) return A('Colher ' + CROPS[o.crop].name.toLowerCase(), () => { const c = o.crop; if (!gain(c)) return; S.farm.tiles[i] = { k: 'soil' }; P.hop = performance.now() + 300; qEvent('harvest'); save(); });
-      if (o && o.k === 'tree') {
-        const T = TREES[o.sp];
-        if (o.fruit) return A(`Colher ${ITEMS[T.fruit].name.toLowerCase()}s`, () => { if (!gain(T.fruit, T.n)) return; o.fruit = false; o.cool = 0; save(); });
-        return A(T.name, () => run(() => say('narr', o.age < T.grow ? `${T.name} jovem: ${o.age} de ${T.grow} dias para ficar adulta. Árvores não precisam de rega.` : `${T.name} adulta. Os frutos voltam ${T.every - (o.cool || 0) <= 1 ? 'amanhã' : `em ${T.every - (o.cool || 0)} dias`}.`)));
-      }
-      if (kind === 'sapling') {
-        const ok = !o && [-1, 0, 1].every(dr => [-1, 0, 1].every(dc => { const c = (i % World.GRID.cols) + dc, r = Math.floor(i / World.GRID.cols) + dr; const n = S.farm.tiles[r * World.GRID.cols + c]; return c < 0 || c >= World.GRID.cols || !n || n.k !== 'tree'; }));
-        return ok ? A('Plantar ' + ITEMS[id].name.toLowerCase(), () => { removeItem(id); S.farm.tiles[i] = { k: 'tree', sp: ITEMS[id].tree, age: 0, fruit: false, cool: 0 }; P.hop = performance.now() + 300; toast('Muda plantada'); save(); })
-          : A('Sem espaço para a muda', () => run(() => say('narr', 'Não há espaço aqui. A muda precisa de grama livre, sem terra arada, entulho ou outra árvore encostada.')));
-      }
-      if (id === 'enxada' && !o) return A('Arar a terra', () => { if (!useTool(id, 2)) return; S.farm.tiles[i] = { k: 'soil' }; qEvent('till'); save(); });
-      if (id === 'regador' && o && o.k === 'soil' && !o.w) return A(`Regar (água: ${S.can}/10)`, () => { if (!S.can) return toast('Regador vazio: encha no lago'); if (!useTool(id, 1)) return; S.can--; o.w = 1; if (o.crop) qEvent('water'); renderHotbar(); save(); });
-      if (kind === 'seed' && o && o.k === 'soil' && !o.crop) return A('Plantar ' + CROPS[ITEMS[id].crop].name.toLowerCase(), () => { removeItem(id); o.crop = ITEMS[id].crop; o.g = 0; P.hop = performance.now() + 250; qEvent('plant'); save(); });
-      if (o && (o.k === 'branch' || o.k === 'stone' || o.k === 'weed')) {
-        const need = { branch: 'machado', stone: 'picareta', weed: 'foice' }[o.k], name = { branch: 'Galho', stone: 'Pedra', weed: 'Mato' }[o.k];
-        if (id !== need) return { label: `${name} (use ${need === 'foice' ? 'a foice' : need === 'machado' ? 'o machado' : 'a picareta'})`, cursor };
-        return A({ branch: 'Cortar o galho', stone: 'Quebrar a pedra', weed: 'Cortar o mato' }[o.k], () => {
-          const drop = { branch: 'madeira', stone: 'pedra' }[o.k];
-          if (drop && !canAdd(drop)) return toast('Mochila cheia');
-          if (!useTool(id, o.k === 'weed' ? 1 : 3)) return;
-          delete S.farm.tiles[i]; if (drop) gain(drop); save();
-        });
-      }
-      if (o && o.k === 'soil' && o.crop) return { label: `${CROPS[o.crop].name}: ${o.g} de ${CROPS[o.crop].days} dias${o.w ? ', regado' : ', precisa de água'}`, cursor };
-      if (kind === 'seed' && !o) return { label: 'Are a terra antes de plantar', cursor };
-    } else if (kind === 'sapling') return { label: 'Sem espaço para a muda', act: () => run(() => say('narr', 'Mudas só podem ser plantadas na terra da sua fazenda, em grama livre.')) };
-    // bosque
-    for (let n = 0; n < World.NTREES.length; n++) {
-      const [x, y] = World.NTREES[n]; if (S.nature.trees[n] || Math.hypot(fx - x, fy - (y - 6)) > 15) continue;
-      if (id !== 'machado') return { label: 'Árvore (use o machado)' };
-      return { label: 'Cortar a árvore', act: () => { if (!canAdd('madeira', 3)) return toast('Mochila cheia'); if (!useTool(id, 3)) return; hits['t' + n] = (hits['t' + n] || 0) + 1; if (hits['t' + n] >= 3) { delete hits['t' + n]; S.nature.trees[n] = S.day + 4; gain('madeira', 3); save(); } else toast(`Tchac! (${hits['t' + n]}/3)`); } };
-    }
-    for (let n = 0; n < World.NROCKS.length; n++) {
-      const [x, y] = World.NROCKS[n]; if (S.nature.rocks[n] || Math.hypot(fx - x, fy - (y - 5)) > 16) continue;
-      if (id !== 'picareta') return { label: 'Rocha (use a picareta)' };
-      return { label: 'Quebrar a rocha', act: () => { if (!canAdd('pedra', 2)) return toast('Mochila cheia'); if (!useTool(id, 3)) return; hits['r' + n] = (hits['r' + n] || 0) + 1; if (hits['r' + n] >= 2) { delete hits['r' + n]; S.nature.rocks[n] = S.day + 3; gain('pedra', 2); save(); } else toast('Crac! (1/2)'); } };
-    }
-    if (id === 'espada') return { label: 'Golpear', act: () => { useTool(id, 1); } };
-    return null;
-  }
-
   /* Anima a ferramenta e gasta energia. Devolve false se faltar energia. */
   function useTool(id, energy) {
     if (S.energy < energy) { toast('Sem energia. Durma para recuperar.'); return false; }
     S.energy -= energy;
-    const now = performance.now(); P.tool = { id, t0: now }; P.work = now + 300;
+    const now = performance.now(); P.tool = { id, t0: now }; P.work = now + SWING;
     renderHud();
     return true;
   }
@@ -463,7 +533,8 @@
     if (/^Arrow|^ $/.test(e.key)) e.preventDefault();               // as setas e o espaço não rolam a página
     if (KEYMAP[e.key]) { keys[KEYMAP[e.key]] = true; return; }
     if (/^[0-9]$/.test(e.key) && !blocked()) { selectSlot(e.key === '0' ? 9 : +e.key - 1); return; }
-    if (e.key === 'e' || e.key === 'E' || e.key === ' ' || e.key === 'Enter') { if (e.repeat) return; e.preventDefault(); action(); }
+    // E, Espaço e Enter só avançam as conversas; no cenário, as ações são por clique
+    if ((e.key === 'e' || e.key === 'E' || e.key === ' ' || e.key === 'Enter') && onAdvance && !e.repeat) { e.preventDefault(); onAdvance(); }
   });
   window.addEventListener('keyup', e => { if (KEYMAP[e.key]) keys[KEYMAP[e.key]] = false; });
   window.addEventListener('blur', () => { Object.keys(keys).forEach(k => { keys[k] = false; }); });
@@ -472,12 +543,35 @@
     b.addEventListener('pointerdown', set(true)); ['pointerup', 'pointerleave', 'pointercancel'].forEach(n => b.addEventListener(n, set(false)));
     b.addEventListener('contextmenu', e => e.preventDefault());
   });
-  $('touch-act').addEventListener('click', () => action());
-  function action() {
-    if (onAdvance) return onAdvance();
-    if (blocked() || P.work) return;
-    if (near && near.act) near.act();
-  }
+
+  /* Mouse e toque no cenário. A posição vira coordenada do mundo considerando a câmera
+     e o tamanho em que o canvas aparece na tela. */
+  let mouse = null;
+  const scene = $('scene');
+  const setMouse = e => { const r = scene.getBoundingClientRect(); mouse = { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height }; };
+  const mouseWorld = () => { const c = World.camera(map, P.x, P.y); return [c.x + mouse.fx * World.VW, c.y + mouse.fy * World.VH]; };
+  scene.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') setMouse(e); });
+  scene.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouse = null; });
+  scene.addEventListener('contextmenu', e => e.preventDefault());
+  scene.addEventListener('pointerdown', e => {
+    if (screen !== 'game' || !S || !map) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    setMouse(e);
+    if (blocked() || P.work) return;            // conversa ou menu aberto, ou golpe em andamento: o clique não conta nem fica guardado
+    const [wx, wy] = mouseWorld(), tg = targetAt(wx, wy, actors());
+    if (!tg) { const it = equipped(); if (it && it.id === 'espada') { faceTo(wx, wy); useTool('espada', 0); } return; }
+    if (!reachable(tg)) return tip(`Longe demais: chegue mais perto de ${tg.label.split(' — ')[0].replace(/ \(.*\)$/, '').replace(/^(Falar com|Entrar:) /, '').toLowerCase()}.`);
+    const [cx, cy] = center(tg.near || tg.rect); faceTo(cx, cy);
+    if (tg.act) tg.act();
+  });
+  scene.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') setTimeout(() => { mouse = null; }, 700); });
+  // no toque, o navegador gera um clique extra ao soltar o dedo; ele não pode cair no painel que acabou de abrir
+  scene.addEventListener('touchend', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+
+  let lastTip = '', lastTipT = 0;
+  /* Orientação curta, sem repetir a mesma mensagem em sequência. */
+  function tip(text) { const now = performance.now(); if (text === lastTip && now - lastTipT < 1200) return; lastTip = text; lastTipT = now; toast(text); }
   function selectSlot(i) { S.sel = i; renderHotbar(); }
 
   /* =====================================================
@@ -717,7 +811,8 @@
     S.coop.hens.forEach(h => { if (S.coop.feed > 0) { S.coop.feed--; h.well = Math.min(100, h.well + 6); if (S.coop.eggs < S.coop.hens.length * 3) { S.coop.eggs++; eggs++; } } else { h.well = Math.max(0, h.well - 12); hungry++; } });
     const finished = S.day;
     S.day++; S.time = DAY_START; clockAcc = 0; S.energy = 100; S.daily = { talk: {}, gift: {} };
-    [S.nature.trees, S.nature.rocks].forEach(m => Object.keys(m).forEach(k => { if (S.day >= m[k]) delete m[k]; }));
+    Object.keys(S.nature.trees).forEach(k => { if (S.day >= S.nature.trees[k]) { delete S.nature.trees[k]; delete S.nature.cleared[k]; delete S.dmg['s' + k]; } });
+    Object.keys(S.nature.rocks).forEach(k => { if (S.day >= S.nature.rocks[k]) delete S.nature.rocks[k]; });
     refreshForage(S);
     const b = World.get('casa').objs.find(o => o.kind === 'bed');
     enterMap('casa', b.x + 20, b.y + 10, 'down');
@@ -763,11 +858,12 @@
      PAINÉIS
      ===================================================== */
   let tab = 'mochila', picked = null;
-  function openModal(t) { if (busy) return; $('modal').hidden = false; picked = null; renderTab(t); }
+  let modalT = 0;
+  function openModal(t) { if (busy) return; $('modal').hidden = false; modalT = performance.now(); picked = null; renderTab(t); }
   function closeModal() { $('modal').hidden = true; if (S) { renderHotbar(); renderHud(); } }
   document.querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => ($('modal').hidden ? openModal(b.dataset.tab) : renderTab(b.dataset.tab)); });
   $('modal-close').onclick = closeModal;
-  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+  $('modal').addEventListener('click', e => { if (e.target === $('modal') && performance.now() - modalT > 400) closeModal(); });
   const closeBtn = () => { const b = btn('btn primary', 'Fechar', closeModal); b.style.marginTop = '12px'; return b; };
   const heartsNode = n => { const s = el('span', 'hearts'); for (let i = 0; i < 5; i++) s.append(el('i', i < n ? 'on' : '', '♥')); return s; };
 
@@ -887,7 +983,8 @@
 
   /* Ganchos para testes automatizados e depuração. */
   window.__trilha = {
-    get S() { return S; }, get P() { return P; }, get map() { return map; }, get near() { return near; }, get busy() { return blocked(); }, get hens() { return hens; }, save,
+    get S() { return S; }, get P() { return P; }, get map() { return map; }, get hover() { return hover; }, get near() { return hover && hover.ok ? hover : null; }, get busy() { return blocked(); }, get hens() { return hens; }, save,
+    cam: () => World.camera(map, P.x, P.y),
     villagerAt: id => villagerAt(villagerById(id), S.time), tile: i => World.tilePos(i),
     place(m, x, y, dir) { enterMap(m, x, y, dir || 'down'); P.x = x; P.y = y; },
   };

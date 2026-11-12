@@ -296,8 +296,9 @@ const World = (() => {
     const doorX = house(o);
     solid(o.x - 3, o.y + 4, o.w + 6, o.h - 4);
     const d = { x: Math.round(doorX), y: Math.ceil((o.y + o.h) / CELL) * CELL + 7 };     // primeiro ponto livre em frente à porta
-    if (enter) { cur.doors[id] = d; obj({ id: 'door:' + id, kind: 'door', to: id, x: d.x, y: d.y - 3, r: 14, label: 'Entrar: ' + label }); }
-    else obj({ id: 'house:' + id, kind: 'text', x: d.x, y: d.y - 3, r: 13, label, text: 'A porta está fechada. Bater sem ser chamado não é costume por aqui.' });
+    const hit = [d.x - 9, o.y + o.h - 18, 18, 20];
+    if (enter) { cur.doors[id] = d; obj({ id: 'door:' + id, kind: 'door', to: id, x: d.x, y: d.y - 3, r: 14, hit, label: 'Entrar: ' + label }); }
+    else obj({ id: 'house:' + id, kind: 'text', x: d.x, y: d.y - 3, r: 13, hit, label, text: 'A porta está fechada. Bater sem ser chamado não é costume por aqui.' });
     return d;
   }
   function water(cx, cy, rx, ry) {
@@ -324,10 +325,10 @@ const World = (() => {
     R(GRID.x0 - 2, GRID.y0 - 2, GRID.cols * GRID.s + 4, GRID.rows * GRID.s + 4, '#4f9c38');
     building('casa', 'Sua casa', { x: 56, y: 60, w: 80, h: 88, roof: '#b85a3a', roofRatio: 0.42, wall: '#ece2c8', windows: [[8, 10], [62, 10]], chimney: 58, flowerBox: true, door: '#6a4426' }, true);
     water(336, 100, 40, 24);
-    obj({ id: 'water', kind: 'water', x: SPOT.water[0], y: SPOT.water[1], r: 22, label: 'Lago' });
+    obj({ id: 'water', kind: 'water', x: SPOT.water[0], y: SPOT.water[1], r: 22, hit: [296, 76, 80, 54], label: 'Lago' });
     // boneco de treino
     box(SPOT.dummy[0] - 2, SPOT.dummy[1] - 4, 4, 4, '#6a4426'); solid(SPOT.dummy[0] - 5, SPOT.dummy[1] - 6, 10, 6); keep(SPOT.dummy[0] - 14, SPOT.dummy[1] - 30, 28, 40);
-    obj({ id: 'dummy', kind: 'dummy', x: SPOT.dummy[0], y: SPOT.dummy[1] + 6, r: 16, label: 'Boneco de treino' });
+    obj({ id: 'dummy', kind: 'dummy', x: SPOT.dummy[0], y: SPOT.dummy[1] + 6, r: 16, hit: [SPOT.dummy[0] - 9, SPOT.dummy[1] - 32, 18, 36], label: 'Boneco de treino' });
     // galinheiro e cercado
     house({ x: 44, y: 384, w: 60, h: 62, roof: '#b8402e', wall: '#c8744a', timber: '#f0e8d8', windows: [[6, 6, 9, 8]], door: '#f0e8d8', doorW: 12, doorX: 40 }); solid(41, 388, 66, 60);
     keep(104, 376, 176, 110);
@@ -337,14 +338,14 @@ const World = (() => {
     for (let y = 398; y < 474; y += 8) { R(270, y, 3, 6, '#c89858'); R(270, y, 1, 6, '#e0b878'); }
     box(SPOT.feeder[0] - 9, SPOT.feeder[1] - 12, 18, 7, '#8a5e36'); R(SPOT.feeder[0] - 8, SPOT.feeder[1] - 11, 16, 3, '#5a3a22'); solid(SPOT.feeder[0] - 9, SPOT.feeder[1] - 12, 18, 7);
     box(SPOT.nest[0] - 9, SPOT.nest[1] - 12, 18, 9, '#c89858'); R(SPOT.nest[0] - 7, SPOT.nest[1] - 10, 14, 5, '#e8d070'); solid(SPOT.nest[0] - 9, SPOT.nest[1] - 12, 18, 9);
-    obj({ id: 'feeder', kind: 'feeder', x: SPOT.feeder[0], y: SPOT.feeder[1], r: 16, label: 'Comedouro' });
-    obj({ id: 'nest', kind: 'nest', x: SPOT.nest[0], y: SPOT.nest[1] + 2, r: 16, label: 'Ninho' });
+    obj({ id: 'feeder', kind: 'feeder', x: SPOT.feeder[0], y: SPOT.feeder[1], r: 16, hit: [SPOT.feeder[0] - 11, SPOT.feeder[1] - 16, 22, 16], label: 'Comedouro' });
+    obj({ id: 'nest', kind: 'nest', x: SPOT.nest[0], y: SPOT.nest[1] + 2, r: 16, hit: [SPOT.nest[0] - 11, SPOT.nest[1] - 16, 22, 18], label: 'Ninho' });
     // cerca e porteira da fazenda
     for (let y = 40; y < 500; y += 8) if (y < 144 || y > 180) { R(404, y, 3, 6, '#b88448'); R(404, y, 1, 6, '#d8a868'); }
     solid(402, 30, 6, 116); solid(402, 182, 6, 320); keep(396, 30, 18, 470);
     box(396, 140, 6, 12, '#8a5e36'); box(396, 176, 6, 12, '#8a5e36');
     R(120, 132, 14, 10, OUT); R(121, 133, 12, 8, '#f0e6cc'); R(126, 142, 2, 8, '#6a4426'); R(123, 135, 8, 1, '#8a5e36'); R(123, 138, 6, 1, '#8a5e36');
-    obj({ id: 'placa', kind: 'text', x: 127, y: 154, r: 12, label: 'Placa', text: 'SÍTIO BEIRA-RIO — cuidado por você. A vila fica para o leste, seguindo a estrada.' });
+    obj({ id: 'placa', kind: 'text', x: 127, y: 154, r: 12, hit: [118, 130, 18, 22], label: 'Placa', text: 'SÍTIO BEIRA-RIO — cuidado por você. A vila fica para o leste, seguindo a estrada.' });
     // ---------- vila ----------
     building('loja', 'Armazém', { x: 466, y: 62, w: 88, h: 86, roof: '#c8683a', wall: '#f4e8c8', windows: [[8, 10, 16, 9], [64, 10, 16, 9]], flowerBox: true, door: '#7a4a2a', doorW: 14 }, true);
     box(502, 108, 16, 9, '#f0e6cc'); R(505, 111, 10, 3, '#c8683a');
@@ -354,14 +355,14 @@ const World = (() => {
     fountain(630, 136); solid(616, 126, 28, 16);
     [[566, 226], [694, 226], [566, 116], [694, 116]].forEach(([x, y]) => addLamp(x, y));
     keep(SPOT.bench[0] - 18, SPOT.bench[1] - 14, 36, 22); solid(SPOT.bench[0] - 13, SPOT.bench[1] - 8, 26, 8);
-    obj({ id: 'bench', kind: 'bench', x: SPOT.bench[0], y: SPOT.bench[1] + 6, r: 14, label: 'Banco da praça' });
+    obj({ id: 'bench', kind: 'bench', x: SPOT.bench[0], y: SPOT.bench[1] + 6, r: 14, hit: [SPOT.bench[0] - 14, SPOT.bench[1] - 15, 28, 17], label: 'Banco da praça' });
     // ---------- bosque ----------
     building('tome', 'Cabana de Tomé', { x: 980, y: 66, w: 60, h: 76, roof: '#5a7a5a', wall: '#b89868', brick: true, windows: [[6, 8, 9, 8]], chimney: 40, door: '#5a3a22', doorX: 30 }, false);
     water(1104, 258, 62, 36);
     NTREES.forEach(([x, y]) => keep(x - 16, y - 34, 32, 44)); NROCKS.forEach(([x, y]) => keep(x - 12, y - 14, 24, 22)); FORAGE.forEach(([x, y]) => keep(x - 12, y - 14, 24, 24));
     keep(SPOT.hat[0] - 12, SPOT.hat[1] - 14, 24, 24);
     R(846, 150, 14, 10, OUT); R(847, 151, 12, 8, '#f0e6cc'); R(852, 160, 2, 8, '#6a4426'); solid(848, 162, 10, 5);
-    obj({ id: 'placa2', kind: 'text', x: 853, y: 176, r: 12, label: 'Placa', text: 'BOSQUE — madeira, pedra e o que a mata oferecer. Corte com juízo: o que se tira hoje volta em alguns dias.' });
+    obj({ id: 'placa2', kind: 'text', x: 853, y: 176, r: 12, hit: [844, 148, 18, 22], label: 'Placa', text: 'BOSQUE — madeira, pedra e o que a mata oferecer. Corte com juízo: o que se tira hoje volta em alguns dias.' });
     // ---------- vegetação: bordas fechadas e enfeites ----------
     solid(0, 0, W, 26); solid(0, H - 10, W, 10); solid(0, 0, 8, H); solid(W - 8, 0, 8, H);
     for (let x = 14; x < W; x += 26) { (x % 3 ? addTree : addPine)(x, 30 + (x % 4) * 3, 10); (x % 2 ? addTree : addPine)(x + 8, H - 4 - (x % 3) * 2, 10); }
@@ -401,10 +402,10 @@ const World = (() => {
       R(84, 22, 60, 2, '#8a5e36'); ['#c8483a', '#7a7a8a', '#e0a23a'].forEach((c, i) => box(90 + i * 18, 12, 10, 9, c));
       FLOOR.rug(96, 104, 64, 34, '#a86a48');
       ST.stove(108, 34); solid(108, 72, 34, 20);
-      obj({ id: 'fogao', kind: 'text', x: 125, y: 100, label: 'Fogão a lenha', text: 'O fogão a lenha do sítio. Antigo, mas ainda esquenta a casa inteira.' });
-      FLOOR.bed(12, 108, '#3f86d0'); obj({ id: 'bed', kind: 'bed', x: 23, y: 114, label: 'Dormir' });
-      FLOOR.chest(44, 92); obj({ id: 'chest', kind: 'chest', x: 53, y: 98, label: 'Baú' });
-      ST.wardrobe(190, 36); solid(190, 72, 36, 20); obj({ id: 'wardrobe', kind: 'wardrobe', x: 208, y: 100, label: 'Guarda-roupa e espelho' });
+      obj({ id: 'fogao', kind: 'text', x: 125, y: 100, hit: [108, 56, 34, 36], label: 'Fogão a lenha', text: 'O fogão a lenha do sítio. Antigo, mas ainda esquenta a casa inteira.' });
+      FLOOR.bed(12, 108, '#3f86d0'); obj({ id: 'bed', kind: 'bed', x: 23, y: 114, hit: [10, 76, 26, 40], label: 'Dormir' });
+      FLOOR.chest(44, 92); obj({ id: 'chest', kind: 'chest', x: 53, y: 98, hit: [42, 78, 22, 16], label: 'Baú' });
+      ST.wardrobe(190, 36); solid(190, 72, 36, 20); obj({ id: 'wardrobe', kind: 'wardrobe', x: 208, y: 100, hit: [190, 34, 36, 62], label: 'Guarda-roupa e espelho' });
       FLOOR.table(170, 144, 34); FLOOR.plant(236, 150);
     } else {
       roomBase('#f8e8c8', '#c8b088', '#b09868');
@@ -413,14 +414,14 @@ const World = (() => {
       // balcão
       box(70, 96, 116, 14, '#b88448'); R(70, 96, 116, 4, '#d8a868'); solid(70, 92, 116, 18); solid(60, 76, 10, 34); solid(186, 76, 10, 34);
       [['#c8483a', 78], ['#58b858', 90], ['#e0a23a', 160], ['#f0e6cc', 172]].forEach(([c, x]) => box(x, 88, 8, 8, c));
-      obj({ id: 'counter', kind: 'counter', x: 128, y: 118, r: 24, label: 'Balcão do Armazém' });
+      obj({ id: 'counter', kind: 'counter', x: 128, y: 118, r: 24, hit: [70, 92, 116, 20], label: 'Balcão do Armazém' });
       ST.crate(14, 34); FLOOR.plant(232, 150);
       for (let i = 0; i < 3; i++) { box(22 + i * 14, 136, 10, 12, ['#c8a050', '#8a5e36', '#c8a050'][i]); R(22 + i * 14, 136, 10, 3, '#e8d070'); } solid(20, 136, 42, 12);
       m.keeper = [128, 90];
     }
     solid(0, 0, W, 76); solid(0, 0, 4, H); solid(W - 4, 0, 4, H); solid(0, H - 3, W, 3);
     R(112, H - 8, 32, 8, '#6a4426'); R(114, H - 6, 28, 6, '#c8a878'); R(118, H - 5, 20, 1, '#a88858');
-    obj({ id: 'exit', kind: 'exit', x: 128, y: H - 8, r: 14, label: 'Sair' });
+    obj({ id: 'exit', kind: 'exit', x: 128, y: H - 8, r: 14, hit: [108, H - 16, 40, 16], label: 'Sair' });
     m.spawn = { x: 128, y: H - 14 };
     return m;
   }
@@ -530,6 +531,7 @@ const World = (() => {
     const P = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); };
     if (k === 'stone') { P(2, 5, 12, 9, OUT); P(3, 6, 10, 7, '#9a9aa8'); P(4, 6, 6, 2, '#c8c8d4'); P(9, 10, 4, 2, '#6a6a78'); P(5, 3, 6, 3, OUT); P(6, 4, 4, 2, '#b0b0bc'); }
     if (k === 'branch') { P(1, 9, 14, 4, OUT); P(2, 10, 12, 2, '#8a5e36'); P(2, 10, 12, 1, '#b88448'); P(9, 5, 3, 5, OUT); P(10, 6, 1, 4, '#8a5e36'); P(4, 6, 3, 4, OUT); P(5, 7, 1, 3, '#8a5e36'); P(11, 4, 3, 2, '#58b858'); }
+    if (k === 'stump') { P(2, 7, 12, 8, OUT); P(3, 8, 10, 6, '#7a5230'); P(3, 8, 10, 2, '#c8a070'); P(5, 9, 6, 1, '#a88050'); P(1, 13, 3, 2, '#5a3a22'); P(12, 13, 3, 2, '#5a3a22'); P(7, 5, 2, 3, '#7a5230'); }
     if (k === 'weed') { P(2, 8, 12, 6, '#2f8a40'); P(3, 5, 2, 4, '#3f9648'); P(7, 3, 2, 6, '#58b858'); P(11, 5, 2, 4, '#3f9648'); P(5, 9, 6, 4, '#3f9648'); P(1, 11, 2, 3, '#267a3a'); P(13, 11, 2, 3, '#267a3a'); P(9, 6, 1, 1, '#ffe066'); }
   }
   function rock(ctx, x, y) { const P = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); }; P(-9, -11, 18, 12, OUT); P(-8, -10, 16, 10, '#8a8a98'); P(-7, -10, 9, 3, '#c0c0cc'); P(1, -4, 6, 3, '#5e5e6c'); P(-5, -15, 9, 5, OUT); P(-4, -14, 7, 4, '#a4a4b2'); }
@@ -552,6 +554,8 @@ const World = (() => {
     const list = [];
     map.sprites.forEach(s => { if (seen(s.x + 16, s.base, 46)) list.push({ base: s.base, img: s.img, x: s.x, y: s.y }); });
     const put = (f, x, y) => list.push({ base: y, img: f.img, x: x - f.ox, y: y - f.h + 4 });
+    /* deslocamento de tremor do objeto que acabou de levar um golpe */
+    const shk = key => (v.shake && v.shake.key === key && t - v.shake.t0 < 240 ? Math.round(Math.sin((t - v.shake.t0) / 20) * 2) : 0);
 
     if (map.id === 'fora') {
       const ph = Math.floor(t / 280);
@@ -566,11 +570,12 @@ const World = (() => {
           if (o.w) { R(q.x + 3, q.y + 6, 2, 1, '#6a8ab8'); R(q.x + 11, q.y + 12, 2, 1, '#6a8ab8'); }
           if (o.crop) crop(ctx, q.x, q.y, o.crop, o.g >= CROPS[o.crop].days ? 3 : o.g === 0 ? 0 : o.g * 2 > CROPS[o.crop].days ? 2 : 1);
         } else if (o.k === 'tree') put(fruitTree(o.sp, o.age >= TREES[o.sp].grow ? 2 : o.age * 2 >= TREES[o.sp].grow ? 1 : 0, o.fruit), q.x + 8, q.y + 13);
-        else debris(ctx, q.x, q.y, o.k);
+        else debris(ctx, q.x + shk('f' + key), q.y, o.k);
       }
       // bosque
-      NTREES.forEach(([x, y], i) => { if (seen(x, y, 50)) put(S.nature.trees[i] ? stump() : wildTree(), x, y); });
-      NROCKS.forEach(([x, y], i) => { if (!S.nature.rocks[i] && seen(x, y)) rock(ctx, x, y); });
+      const cleared = S.nature.cleared || {};
+      NTREES.forEach(([x, y], i) => { if (!cleared[i] && seen(x, y, 50)) put(S.nature.trees[i] ? stump() : wildTree(), x + shk((S.nature.trees[i] ? 's' : 't') + i), y); });
+      NROCKS.forEach(([x, y], i) => { if (!S.nature.rocks[i] && seen(x, y)) rock(ctx, x + shk('r' + i), y); });
       FORAGE.forEach(([x, y], i) => { if (S.nature.forage[i] && seen(x, y)) forage(ctx, x, y, S.nature.forage[i]); });
       if (S.nature.hat) forage(ctx, SPOT.hat[0], SPOT.hat[1], 'chapeu_tome');
       // galinheiro
@@ -585,7 +590,6 @@ const World = (() => {
       list.push({ base: SPOT.dummy[1], img: df.img, x: SPOT.dummy[0] - df.ox + Math.round(Math.sin(t / 30) * 3 * dk), y: SPOT.dummy[1] - df.h + 4 });
       (v.hens || []).forEach(h => list.push({ base: h.y, hen: h }));
     }
-    if (v.cursor) { const c = v.cursor, b = Math.floor(t / 350) % 2; ctx.fillStyle = b ? '#ffffff' : '#ffd75e'; [[0, 0, 5, 1], [0, 0, 1, 5], [c.w - 5, 0, 5, 1], [c.w - 1, 0, 1, 5], [0, c.h - 1, 5, 1], [0, c.h - 5, 1, 5], [c.w - 5, c.h - 1, 5, 1], [c.w - 1, c.h - 5, 1, 5]].forEach(([a, e, w, h]) => ctx.fillRect(c.x + a, c.y + e, w, h)); }
 
     v.actors.forEach(a => list.push({ base: a.y, a }));
     list.sort((p, q) => p.base - q.base);
@@ -600,6 +604,9 @@ const World = (() => {
       if (using && a.dir !== 'up') toolSwing(ctx, a, ax, ay, tk);
     });
     v.actors.forEach(a => { if (a.bubble) bubble(Math.round(a.x) - 7, Math.round(a.y) - 42, a.bubble === '...' ? '' : '!', t); if (a.heart) heart(ctx, Math.round(a.x) - 3, Math.round(a.y) - 38 - Math.floor(t / 300) % 2); });
+    if (v.cursor) { const c = v.cursor, b = Math.floor(t / 350) % 2; ctx.fillStyle = c.far ? 'rgba(255,255,255,.45)' : b ? '#ffffff' : '#ffd75e'; [[0, 0, 5, 1], [0, 0, 1, 5], [c.w - 5, 0, 5, 1], [c.w - 1, 0, 1, 5], [0, c.h - 1, 5, 1], [0, c.h - 5, 1, 5], [c.w - 5, c.h - 1, 5, 1], [c.w - 1, c.h - 5, 1, 5]].forEach(([a, e, w, h]) => ctx.fillRect(c.x + a, c.y + e, w, h)); }
+    (v.bars || []).forEach(b => { const x = Math.round(b.x) - 8, y = Math.round(b.y); ctx.fillStyle = OUT; ctx.fillRect(x - 1, y - 1, 18, 4); ctx.fillStyle = '#5a1a1a'; ctx.fillRect(x, y, 16, 2); ctx.fillStyle = b.frac > 0.5 ? '#8fe88f' : b.frac > 0.25 ? '#ffd75e' : '#ff7b5a'; ctx.fillRect(x, y, Math.max(1, Math.round(16 * b.frac)), 2); });
+    (v.impacts || []).forEach(f => impact(ctx, f, t));
     (v.markers || []).forEach(mk => { const b = Math.floor(t / 250) % 2, x = Math.round(mk.x), y = Math.round(mk.y) - b * 2; ctx.fillStyle = OUT; ctx.fillRect(x - 4, y - 8, 9, 6); ctx.fillRect(x - 3, y - 2, 7, 2); ctx.fillRect(x - 1, y, 3, 2); ctx.fillStyle = '#ffd75e'; ctx.fillRect(x - 3, y - 7, 7, 5); ctx.fillRect(x - 2, y - 2, 5, 1); ctx.fillRect(x, y - 1, 1, 2); });
     (v.floats || []).forEach(f => { const k = (t - f.t0) / 700; if (k < 0 || k > 1) return; ctx.globalAlpha = 1 - k; ctx.drawImage(icon(f.icon), Math.round(f.x) - 8, Math.round(f.y - 24 - k * 14)); ctx.globalAlpha = 1; });
     ctx.restore();
@@ -616,6 +623,18 @@ const World = (() => {
     ctx.restore();
     if (a.tool.id === 'regador' && k > 0.3) { ctx.fillStyle = '#8fd0f0'; for (let i = 0; i < 4; i++) ctx.fillRect(Math.round(x + d[0] * 14 - 4 + i * 3), Math.round(y - 8 + d[1] * 10 + ((k * 20 + i * 5) % 8)), 1, 2); }
     if (a.tool.id === 'espada' && k > 0.2 && k < 0.8) { ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(Math.round(x + d[0] * 14 - 6), Math.round(y - 12 + d[1] * 12), 12, 1); ctx.fillRect(Math.round(x + d[0] * 16 - 3), Math.round(y - 15 + d[1] * 12), 6, 1); }
+  }
+  /* Efeito de impacto: lascas que voam e um brilho rápido no ponto do golpe. */
+  const CHIP = { wood: ['#b88448', '#7a5230'], stone: ['#c0c0cc', '#8a8a98'], leaf: ['#58b858', '#2f8a40'], soil: ['#a07848', '#6e4c28'], water: ['#bfe4ff', '#6aacf0'], spark: ['#ffffff', '#ffd75e'] };
+  function impact(ctx, f, t) {
+    const k = (t - f.t0) / 380; if (k < 0 || k > 1) return;
+    const [a, b] = CHIP[f.k] || CHIP.spark;
+    if (k < 0.25 && f.k !== 'water' && f.k !== 'soil') { ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(f.x) - 3, Math.round(f.y), 7, 1); ctx.fillRect(Math.round(f.x), Math.round(f.y) - 3, 1, 7); }
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2 + f.t0 % 1, sp = f.k === 'water' ? 7 : 11;
+      const x = f.x + Math.cos(ang) * sp * k, y = f.y + Math.sin(ang) * sp * k * 0.6 + (f.k === 'water' ? 0 : k * k * 8);
+      ctx.fillStyle = i % 2 ? a : b; ctx.fillRect(Math.round(x), Math.round(y), k < 0.5 ? 2 : 1, k < 0.5 ? 2 : 1);
+    }
   }
   function heart(ctx, x, y) { ctx.fillStyle = '#e04a3a'; ctx.fillRect(x, y, 3, 3); ctx.fillRect(x + 4, y, 3, 3); ctx.fillRect(x + 1, y + 3, 5, 2); ctx.fillRect(x + 3, y + 5, 1, 1); }
 
